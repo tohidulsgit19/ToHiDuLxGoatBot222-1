@@ -36,7 +36,7 @@ module.exports = {
     // ✅ Boss Protection check
     if (PROTECTED_UIDS.includes(taggedUID)) {
       return api.sendMessage(
-        `😂 হালা তুই বাপ রে slap দিবি? 🤣\n\n🔥 Boss Level Protection Activated! 💪\n\n👑 এই ইউজারকে slap করা যাবে না!\n\n😎 Try করলেও হবে না! 🚫`,
+        ` 😿 Ai em cholly 😿\n oita amar abba 😗`,
         threadID,
         messageID
       );
