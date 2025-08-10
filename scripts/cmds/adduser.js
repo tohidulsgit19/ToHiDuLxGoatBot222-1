@@ -1,55 +1,88 @@
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const axios = require("axios");
 
 module.exports = {
 	config: {
 		name: "adduser",
-		version: "2.0",
-		author: "NTKhang | Modified by Tas33n",
+		version: "3.0",
+		author: "NTKhang | Modified by Tohidul",
 		countDown: 5,
 		role: 1,
 		description: {
-			vi: "Thêm thành viên vào nhóm bằng cách reply",
-			en: "Add a member to the group by replying"
+			en: "Add a member to group by reply, UID, or profile link"
 		},
 		category: "box chat",
 		guide: {
-			en: "   {pn} [reply to user you want to add]"
+			en: "{pn} [reply to user / UID / profile link]\nUse 'gc' after reply to add to main GC"
 		}
 	},
 
 	langs: {
 		en: {
-			alreadyInGroup: "User is already in the group.",
+			alreadyInGroup: "⚠️ User is already in the group.",
 			successAdd: "✅ Successfully added user to the group.",
+			successAddMain: "✅ Successfully added user to the main group.",
+			approvalPending: "✅ User added to approval list (waiting for admin approval).",
 			failedAdd: "❌ Failed to add user. They may have locked privacy settings or blocked the bot.",
-			noReply: "❌ Please reply to someone's message to add them."
+			noInput: "❌ Please reply to a message, or provide UID/profile link."
 		}
 	},
 
-	onStart: async function ({ api, event, threadsData, getLang, message }) {
+	onStart: async function ({ api, event, args, threadsData, getLang, message }) {
 		const botID = api.getCurrentUserID();
-		const threadInfo = await threadsData.get(event.threadID);
-		const { members, adminIDs, approvalMode } = threadInfo;
+		const mainThreadID = "31629748789957921"; // <-- এখানে তোমার main GC threadID বসাও
 
-		const replyMsg = event.messageReply;
-		if (!replyMsg || !replyMsg.senderID)
-			return message.reply(getLang("noReply"));
+		let targetUID;
 
-		const uid = replyMsg.senderID;
+		// --- 1. যদি reply থাকে ---
+		if (event.type === "message_reply" && event.messageReply?.senderID) {
+			targetUID = event.messageReply.senderID;
 
-		// Check if user already in group
-		if (members.some(m => m.userID == uid && m.inGroup))
-			return message.reply(getLang("alreadyInGroup"));
-
-		try {
-			await api.addUserToGroup(uid, event.threadID);
-
-			if (approvalMode && !adminIDs.includes(botID))
-				return message.reply("✅ User added to approval list (waiting for admin approval).");
-
-			return message.reply(getLang("successAdd"));
-		} catch (err) {
-			return message.reply(getLang("failedAdd"));
+			// যদি args[0] == gc, তাহলে main GC তে add করবে
+			if (args[0] && args[0].toLowerCase() === "gc") {
+				return addToGroup(api, mainThreadID, targetUID, botID, getLang, message, true);
+			}
 		}
+
+		// --- 2. যদি UID দেওয়া হয় ---
+		else if (args[0] && /^\d+$/.test(args[0])) {
+			targetUID = args[0];
+		}
+
+		// --- 3. যদি FB profile link দেওয়া হয় ---
+		else if (args[0] && args[0].startsWith("http")) {
+			try {
+				const res = await axios.get(`https://api.samirxpikachu.xyz/fbgetid?url=${encodeURIComponent(args[0])}`);
+				if (res.data && res.data.id) {
+					targetUID = res.data.id;
+				}
+			} catch (err) {
+				return message.reply("❌ Could not fetch UID from link.");
+			}
+		}
+
+		// --- কিছুই না দিলে ---
+		if (!targetUID) return message.reply(getLang("noInput"));
+
+		// --- Default: current group এ add ---
+		return addToGroup(api, event.threadID, targetUID, botID, getLang, message, false);
 	}
 };
+
+// Function to add user to group
+async function addToGroup(api, threadID, uid, botID, getLang, message, isMain) {
+	try {
+		const threadInfo = await api.getThreadInfo(threadID);
+
+		if (threadInfo.participantIDs.includes(uid))
+			return message.reply(getLang("alreadyInGroup"));
+
+		await api.addUserToGroup(uid, threadID);
+
+		if (threadInfo.approvalMode && !threadInfo.adminIDs.includes(botID))
+			return message.reply(getLang("approvalPending"));
+
+		return message.reply(isMain ? getLang("successAddMain") : getLang("successAdd"));
+	} catch (err) {
+		return message.reply(getLang("failedAdd"));
+	}
+}
