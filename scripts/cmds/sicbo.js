@@ -4,7 +4,7 @@ module.exports = {
   config: {
     name: "sicbo",
     aliases: ["sic"],
-    version: "1.1",
+    version: "1.2",
     author: "Loid Butter + Tohidul",
     countDown: 10,
     role: 0,
@@ -39,7 +39,7 @@ module.exports = {
     // count বাড়াও
     cooldowns[user].count++;
 
-    // -------- নিচে তোমার আসল গেম লজিক --------
+    // -------- গেম লজিক --------
     const betType = args[0]?.toLowerCase();
     const betAmount = parseInt(args[1]);
     const userData = await usersData.get(user);
@@ -66,15 +66,37 @@ module.exports = {
     const total = results.reduce((a, b) => a + b, 0);
     const outcome = total >= 4 && total <= 10 ? "small" : "big";
 
+    // --- SPIN ANIMATION EFFECT ---
+    const spinMsg = await message.reply("🎲 Rolling the dice...");
+    const spinFrames = [
+      "🎲 [ 1 | 2 | 3 ]",
+      "🎲 [ 4 | 6 | 2 ]",
+      "🎲 [ 3 | 5 | 1 ]",
+      "🎲 [ 6 | 2 | 4 ]",
+      "🎲 [ 5 | 1 | 3 ]"
+    ];
+
+    for (let i = 0; i < spinFrames.length; i++) {
+      await new Promise(r => setTimeout(r, 700));
+      await message.edit(spinMsg.messageID, spinFrames[i]);
+    }
+
+    await new Promise(r => setTimeout(r, 700));
+
+    // Final result দেখাও
     if (betType === outcome) {
       const winAmount = betAmount;
       userData.money += winAmount;
       await usersData.set(user, userData);
-      return message.reply(`(\\_/)\n( •_•)\n// >[ ${resultString} ]\n\n🎉 | Congratulations! You won ${winAmount}!`);
+      return message.edit(spinMsg.messageID,
+        `(\\_/)\n( •_•)\n// >[ ${resultString} ]\n\n🎉 | Congratulations! You won ${winAmount}!`
+      );
     } else {
       userData.money -= betAmount;
       await usersData.set(user, userData);
-      return message.reply(`(\\_/)\n( •_•)\n// >[ ${resultString} ]\n\n😿 | You lost ${betAmount}.`);
+      return message.edit(spinMsg.messageID,
+        `(\\_/)\n( •_•)\n// >[ ${resultString} ]\n\n😿 | You lost ${betAmount}.`
+      );
     }
   }
 };
