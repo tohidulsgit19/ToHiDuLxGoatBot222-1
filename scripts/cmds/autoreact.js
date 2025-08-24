@@ -1,36 +1,67 @@
 module.exports = {
   config: {
     name: "autoreact",
-    version: "1.0",
-    author: "tohidul",
+    version: "3.0",
+    author: "Tohidul",
     countDown: 5,
     role: 0,
-    shortDescription: "Auto reaction bot",
-    longDescription: "Automatically reacts to certain words",
+    shortDescription: "Auto reacts to keywords, phrases, or emojis",
+    longDescription: "Automatically reacts to specific words, phrases, or emojis in chat messages.",
     category: "auto",
   },
 
-  onStart: async function () { },
+  onStart: async function () {
+    console.log("[autoreact] Module loaded ✅");
+  },
 
   onChat: async function ({ event, api }) {
-    if (!event.body) return; // Skip if no message body
+    if (!event.body) return;
     const msg = event.body.toLowerCase();
 
-    const react = (emoji) => api.setMessageReaction(emoji, event.messageID, () => {}, true);
+    // Keyword / phrase / emoji → reaction emoji mapping
+    const reactions = {
+      "iloveyou": "💗",
+      "love": "💗",
+      "good night": "💤",
+      "good morning": "🌞",
+      "good afternoon": "🌤️",
+      "good evening": "🌆",
+      "assalamualaikum": "🤲",
+      "tohidul": "💗",
+      "soitan": "😡",
+      "fuck": "🤬",
+      "gay": "🏳️‍🌈",
+      "happy": "😆",
+      "lol": "😂",
+      "😂": "😂",
+      "🤣": "🤣",
+      "😢": "😢",
+      "😭": "😭",
+      "😆": "😆",
+      "😎": "😎",
+      "wow": "😲",
+      "amazing": "🤩",
+      "congrats": "🎉",
+      "🎉": "🎉",
+      "sad": "😔",
+      "angry": "😡",
+      "❤": "❤",
+      "❤️": "❤️",
+      "🔥": "🔥",
+      "100": "💯",
+      "💯": "💯"
+    };
 
-    if (msg.includes("iloveyou")) return react("💗");
-    if (msg.includes("good night")) return react("💗");
-    if (msg.includes("good morning")) return react("😆");
-    if (msg.includes("fuck")) return react("🤬");
-    if (msg.includes("tohidul")) return react("💗");
-    if (msg.includes("assalamualaikum")) return react("💗");
-    if (msg.includes("😢")) return react("😢");
-    if (msg.includes("😆")) return react("😆");
-    if (msg.includes("😂")) return react("😆");
-    if (msg.includes("🤣")) return react("😆");
-    if (msg.includes("soitan")) return react("😡");
-    if (msg.includes("good afternoon")) return react("❤");
-    if (msg.includes("good evening")) return react("❤");
-    if (msg.includes("gay")) return react("😡");
+    // React only to the first matched keyword per message
+    for (const [keyword, emoji] of Object.entries(reactions)) {
+      if (msg.includes(keyword)) {
+        try {
+          await api.setMessageReaction(emoji, event.messageID, () => {}, true);
+        } catch (err) {
+          console.error("[autoreact] Reaction failed:", err);
+        }
+        break;
+      }
+    }
   }
 };
