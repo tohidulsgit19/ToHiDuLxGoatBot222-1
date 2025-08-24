@@ -9,7 +9,7 @@ module.exports = {
   config: {
     name: "quiz",
     aliases: ["qz"],
-    version: "1.7",
+    version: "1.8",
     author: "MahMUD",
     countDown: 10,
     role: 0,
@@ -35,7 +35,7 @@ module.exports = {
       const { question, correctAnswer, options } = quiz;
       const { a, b, c, d } = options;
       const quizMsg = {
-        body: `\n╭──✦ ${question}\n├‣ 𝗔) ${a}\n├‣ 𝗕) ${b}\n├‣ 𝗖) ${c}\n├‣ 𝗗) ${d}\n╰──────────────────‣\n𝐑𝐞𝐩𝐥𝐲 𝐰𝐢𝐭𝐡 𝐲𝐨𝐮𝐫 𝐚𝐧𝐬𝐰𝐞𝐫.`,
+        body: `\n╭──✦ ${question}\n├‣ 𝗔) ${a}\n├‣ 𝗕) ${b}\n├‣ 𝗖) ${c}\n├‣ 𝗗) ${d}\n╰──────────────────‣\n𝐑𝐞𝐩𝐥𝐲 𝐰𝐢𝐭𝐡 𝐲𝐨𝐮𝐫 𝐚𝐧𝐬𝐰𝐞𝐫.`
       };
 
       api.sendMessage(quizMsg, event.threadID, (error, info) => {
@@ -59,23 +59,39 @@ module.exports = {
 
   onReply: async function ({ event, api, Reply, usersData }) {
     const { correctAnswer, author } = Reply;
-    if (event.senderID !== author) return api.sendMessage("𝐓𝐡𝐢𝐬 𝐢𝐬 𝐧𝐨𝐭 𝐲𝐨𝐮𝐫 𝐪𝐮𝐢𝐳 𝐛𝐚𝐛𝐲 >🐸", event.threadID, event.messageID);
+    if (event.senderID !== author) 
+      return api.sendMessage("𝐓𝐡𝐢𝐬 𝐢𝐬 𝐧𝐨𝐭 𝐲𝐨𝐮𝐫 𝐪𝐮𝐢𝐳 𝐛𝐚𝐛𝐲 >🐸", event.threadID, event.messageID);
 
     await api.unsendMessage(Reply.messageID);
     const userReply = event.body.trim().toLowerCase();
 
+    const userData = await usersData.get(author);
+
     if (userReply === correctAnswer.toLowerCase()) {
       const rewardCoins = 500;
       const rewardExp = 121;
-      const userData = await usersData.get(author);
       await usersData.set(author, {
         money: userData.money + rewardCoins,
         exp: userData.exp + rewardExp,
         data: userData.data
       });
-      api.sendMessage(`✅ | Correct answer baby\nYou earned ${rewardCoins} coins & ${rewardExp} exp.`, event.threadID, event.messageID);
+      api.sendMessage(
+        `✅ | Correct answer baby\nYou earned ${rewardCoins} coins & ${rewardExp} exp.`,
+        event.threadID,
+        event.messageID
+      );
     } else {
-      api.sendMessage(`❌ | Wrong answer baby\nThe correct answer was: ${correctAnswer}`, event.threadID, event.messageID);
+      const penaltyCoins = 250;
+      await usersData.set(author, {
+        money: userData.money - penaltyCoins,
+        exp: userData.exp,
+        data: userData.data
+      });
+      api.sendMessage(
+        `❌ | Wrong answer baby\nThe correct answer was: ${correctAnswer}\n- ${penaltyCoins} coins deducted.`,
+        event.threadID,
+        event.messageID
+      );
     }
   }
 };
