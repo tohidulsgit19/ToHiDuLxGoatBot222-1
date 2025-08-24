@@ -1,82 +1,99 @@
 module.exports = {
- config: {
- name: "spin",
- version: "4.0",
- author: "XNIL",
- countDown: 5,
- role: 0,
- description: "Spin and win/loss money. Use '/spin <amount>' or '/spin top'.",
- category: "game",
- guide: {
- en: "{p}spin <amount>\n{p}spin top"
- }
- },
+  config: {
+    name: "spin",
+    version: "5.0",
+    author: "TOHIDUL",
+    countDown: 5,
+    role: 0,
+    description: "Slot machine spin game with win/loss & leaderboard",
+    category: "game",
+    guide: {
+      en: "{p}spin <amount>\n{p}spin top"
+    }
+  },
 
- onStart: async function ({ message, event, args, usersData }) {
- const senderID = event.senderID;
- const subCommand = args[0];
+  onStart: async function ({ message, event, args, usersData }) {
+    const senderID = event.senderID;
+    const subCommand = args[0];
 
- // ✅ /spin top leaderboard
- if (subCommand === "top") {
- const allUsers = await usersData.getAll();
+    // ✅ /spin top leaderboard
+    if (subCommand === "top") {
+      const allUsers = await usersData.getAll();
+      const top = allUsers
+        .filter(u => typeof u.data?.totalSpinWin === "number" && u.data.totalSpinWin > 0)
+        .sort((a, b) => b.data.totalSpinWin - a.data.totalSpinWin)
+        .slice(0, 10);
 
- const top = allUsers
- .filter(u => typeof u.data?.totalSpinWin === "number" && u.data.totalSpinWin > 0)
- .sort((a, b) => b.data.totalSpinWin - a.data.totalSpinWin)
- .slice(0, 10);
+      if (top.length === 0) {
+        return message.reply("❌ No spin winners yet.");
+      }
 
- if (top.length === 0) {
- return message.reply("❌ No spin winners yet.");
- }
+      const result = top.map((user, i) => {
+        const name = user.name || `User ${user.userID?.slice(-4) || "??"}`;
+        return `${i + 1}. ${name} – 💸 ${user.data.totalSpinWin} coins`;
+      }).join("\n");
 
- const result = top.map((user, i) => {
- const name = user.name || `User ${user.userID?.slice(-4) || "??"}`;
- return `${i + 1}. ${name} – 💸 ${user.data.totalSpinWin} coins`;
- }).join("\n");
+      return message.reply(`🏆 Top Spin Winners:\n\n${result}`);
+    }
 
- return message.reply(`🏆 Top Spin Winners:\n\n${result}`);
- }
+    // ✅ /spin <amount>
+    const betAmount = parseInt(subCommand);
+    if (isNaN(betAmount) || betAmount <= 0) {
+      return message.reply("❌ Usage:\n/spin <amount>\n/spin top");
+    }
 
- // ✅ /spin <amount>
- const betAmount = parseInt(subCommand);
- if (isNaN(betAmount) || betAmount <= 0) {
- return message.reply("❌ Usage:\n/spin <amount>\n/spin top");
- }
+    const userData = await usersData.get(senderID) || {};
+    userData.money = userData.money || 0;
+    userData.data = userData.data || {};
+    userData.data.totalSpinWin = userData.data.totalSpinWin || 0;
 
- const userData = await usersData.get(senderID) || {};
- userData.money = userData.money || 0;
- userData.data = userData.data || {};
- userData.data.totalSpinWin = userData.data.totalSpinWin || 0;
+    if (userData.money < betAmount) {
+      return message.reply(`❌ Not enough money.\n💰 Your balance: ${userData.money}`);
+    }
 
- if (userData.money < betAmount) {
- return message.reply(`❌ Not enough money.\n💰 Your balance: ${userData.money}`);
- }
+    // Bet deduct
+    userData.money -= betAmount;
 
- // Bet deduct
- userData.money -= betAmount;
+    // 🎰 Slot symbols
+    const symbols = ["🍒", "🍋", "🍇", "🍉", "⭐", "7️⃣"];
+    const slot1 = symbols[Math.floor(Math.random() * symbols.length)];
+    const slot2 = symbols[Math.floor(Math.random() * symbols.length)];
+    const slot3 = symbols[Math.floor(Math.random() * symbols.length)];
 
- const outcomes = [
- { text: "💥 You lost everything!", multiplier: 0 },
- { text: "😞 You got back half.", multiplier: 0.5 },
- { text: "🟡 You broke even.", multiplier: 1 },
- { text: "🟢 You doubled your money!", multiplier: 2 },
- { text: "🔥 You tripled your bet!", multiplier: 3 },
- { text: "🎉 JACKPOT! 10x reward!", multiplier: 10 }
- ];
+    let multiplier = 0;
+    let resultText = "💥 You lost everything!";
 
- const result = outcomes[Math.floor(Math.random() * outcomes.length)];
- const reward = Math.floor(betAmount * result.multiplier);
- userData.money += reward;
+    if (slot1 === slot2 && slot2 === slot3) {
+      // Jackpot condition 🎉
+      multiplier = 10;
+      resultText = "🎉 JACKPOT! All 3 matched!";
+    } else if (slot1 === slot2 || slot2 === slot3 || slot1 === slot3) {
+      // Two symbols matched
+      multiplier = 2;
+      resultText = "🟢 Two matched! You doubled your bet!";
+    } else {
+      // Random small chance to break even
+      if (Math.random() < 0.2) {
+        multiplier = 1;
+        resultText = "🟡 You broke even.";
+      } else if (Math.random() < 0.3) {
+        multiplier = 0.5;
+        resultText = "😞 You got back half.";
+      }
+    }
 
- if (reward > betAmount) {
- const profit = reward - betAmount;
- userData.data.totalSpinWin += profit;
- }
+    const reward = Math.floor(betAmount * multiplier);
+    userData.money += reward;
 
- await usersData.set(senderID, userData);
+    if (reward > betAmount) {
+      const profit = reward - betAmount;
+      userData.data.totalSpinWin += profit;
+    }
 
- return message.reply(
- `${result.text}\n🎰 You bet: ${betAmount}$\n💸 You won: ${reward}$\n💰 New balance: ${userData.money}$`
- );
- }
+    await usersData.set(senderID, userData);
+
+    return message.reply(
+      `🎰 SLOT MACHINE 🎰\n[ ${slot1} | ${slot2} | ${slot3} ]\n\n${resultText}\n\n💵 Bet: ${betAmount}$\n💸 Won: ${reward}$\n💰 Balance: ${userData.money}$`
+    );
+  }
 };
