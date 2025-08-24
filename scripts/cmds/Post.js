@@ -5,7 +5,7 @@ const axios = require("axios");
 module.exports = {
   config: {
     name: "post",
-    version: "1.0",
+    version: "1.1",
     author: "Tohidul",
     countDown: 5,
     role: 1,
@@ -24,38 +24,37 @@ module.exports = {
     if (!event.messageReply)
       return message.reply("❌ Please reply to a photo, video, or text to post.");
 
-    let targetUID = botID; // default = bot's own ID
+    // Determine target UID
+    let targetUID = botID;
     let caption = "";
 
-    // যদি mention থাকে
-    if (Object.keys(event.mentions).length > 0) {
+    if (event.mentions && Object.keys(event.mentions).length > 0) {
       targetUID = Object.keys(event.mentions)[0];
-      caption = args.slice(1).join(" ") || "";
+      // remove mention tag from args
+      const mentionText = Object.values(event.mentions)[0].replace(/@/g, "");
+      caption = args.join(" ").replace(mentionText, "").trim();
     } else {
-      caption = args.join(" ") || "";
+      caption = args.join(" ").trim();
     }
 
-    const tempPath = path.join(__dirname, "cache", `post_${Date.now()}`);
+    // Prepare temp folder
+    const cacheDir = path.join(__dirname, "cache");
+    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
     try {
-      // Attachment থাকলে (photo/video)
-      if (event.messageReply.attachments?.length > 0) {
+      // If there are attachments (photo/video)
+      if (event.messageReply.attachments && event.messageReply.attachments.length > 0) {
         for (const att of event.messageReply.attachments) {
-          const fileExt =
-            att.type === "photo"
-              ? "jpg"
-              : att.type === "video"
-              ? "mp4"
-              : null;
+          const fileExt = att.type === "photo" ? "jpg" : att.type === "video" ? "mp4" : null;
           if (!fileExt) continue;
 
-          const filePath = `${tempPath}.${fileExt}`;
+          const filePath = path.join(cacheDir, `post_${Date.now()}.${fileExt}`);
           const res = await axios.get(att.url, { responseType: "arraybuffer" });
-          fs.writeFileSync(filePath, Buffer.from(res.data, "binary"));
+          fs.writeFileSync(filePath, Buffer.from(res.data));
 
           await api.sendMessage(
             {
-              body: caption,
+              body: caption || "",
               attachment: fs.createReadStream(filePath)
             },
             targetUID
@@ -64,12 +63,10 @@ module.exports = {
           fs.unlinkSync(filePath);
         }
       }
-      // শুধুই টেক্সট হলে
+      // If reply is text only
       else if (event.messageReply.body) {
         await api.sendMessage(
-          caption
-            ? `${caption}\n\n${event.messageReply.body}`
-            : event.messageReply.body,
+          caption ? `${caption}\n\n${event.messageReply.body}` : event.messageReply.body,
           targetUID
         );
       }
@@ -80,7 +77,7 @@ module.exports = {
           : `✅ Posted to mentioned user's inbox (ID: ${targetUID}).`
       );
     } catch (err) {
-      console.error(err);
+      console.error("Post command error:", err);
       message.reply("❌ Failed to post content.");
     }
   }
