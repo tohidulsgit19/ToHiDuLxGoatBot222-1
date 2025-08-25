@@ -1,4 +1,3 @@
-
 const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
@@ -24,7 +23,7 @@ module.exports = {
     const formatMoney = (n) => n >= 1e6 ? `${(n/1e6).toFixed(1)}M 💰` : n.toLocaleString() + " 💵";
 
     if (isNaN(bet) || bet <= 0) return message.reply("❌ Enter a valid amount.");
-    
+
     // ===== BET LIMITS =====
     if (bet < 50) {
       return message.reply("❌ Minimum bet is 50 coins!");
@@ -35,25 +34,25 @@ module.exports = {
 
     if (user.money < bet) return message.reply(`💸 Need ${formatMoney(bet - user.money)} more.`);
 
-    // ========= LIMIT SYSTEM (usersData ভিত্তিক) =========
+    // ========= LIMIT SYSTEM (database based) =========
     const now = Date.now();
     const limit = 20;
     const resetTime = 12 * 60 * 60 * 1000; // 12 ঘন্টা
 
-    if (!user.slotsData) {
-      user.slotsData = { count: 0, lastReset: now };
+    if (!user.slotData) {
+      user.slotData = { count: 0, lastReset: now };
     }
 
-    if (now - user.slotsData.lastReset > resetTime) {
-      user.slotsData = { count: 0, lastReset: now };
+    if (now - user.slotData.lastReset > resetTime) {
+      user.slotData = { count: 0, lastReset: now };
     }
 
-    if (user.slotsData.count >= limit) {
-      const remaining = ((resetTime - (now - user.slotsData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
-      return message.reply(`⚠️ | আজকে আপনি ${limit} বার spin করেছেন। আবার চেষ্টা করুন ${remaining} ঘন্টা পরে।`);
+    if (user.slotData.count >= limit) {
+      const remaining = ((resetTime - (now - user.slotData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
+      return message.reply(`⚠️ You already played ${limit} times in last 12h. Try again after ${remaining} hours.`);
     }
 
-    user.slotsData.count++;
+    user.slotData.count++;
     // ===============================================
 
     const symbols = ["🍒", "🍋", "🍇", "🍉", "⭐", "7️⃣"];
@@ -67,7 +66,7 @@ module.exports = {
 
     if (jackpotChance) {
       winnings = bet * 500;
-      outcome = "🎉 JACKPOT x500!";
+      outcome = "🎉JACKPOT x500!";
     } else if (!loseChance) {
       const multi = Math.floor(Math.random() * 10) + 1;
       winnings = bet * multi;
@@ -89,7 +88,7 @@ module.exports = {
       `${outcome}\n\n` +
       `${winnings >= 0 ? `+${formatMoney(winnings)}` : `-${formatMoney(bet)}`}\n\n` +
       `💰 Bal: ${formatMoney(newBalance)}\n\n` +
-      `🌀 Spins used: ${user.slotsData.count}/${limit}`;
+      `🌀 Spins used: ${user.slotData.count}/${limit}`;
 
     return message.reply(result);
   }

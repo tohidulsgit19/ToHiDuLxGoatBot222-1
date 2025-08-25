@@ -1,4 +1,3 @@
-
 module.exports = {
   config: {
     name: "spin",
@@ -56,25 +55,25 @@ module.exports = {
     userData.data = userData.data || {};
     userData.data.totalSpinWin = userData.data.totalSpinWin || 0;
 
-    // ===== LIMIT SYSTEM (12h / 20 spins) =====
+    // ===== LIMIT SYSTEM (database based) =====
     const now = Date.now();
     const limit = 20;
     const resetTime = 12 * 60 * 60 * 1000; // 12h
 
-    if (!userData.data.spinData) {
-      userData.data.spinData = { count: 0, lastReset: now };
+    if (!userData.spinData) {
+      userData.spinData = { count: 0, lastReset: now };
     }
 
-    if (now - userData.data.spinData.lastReset > resetTime) {
-      userData.data.spinData = { count: 0, lastReset: now };
+    if (now - userData.spinData.lastReset > resetTime) {
+      userData.spinData = { count: 0, lastReset: now };
     }
 
-    if (userData.data.spinData.count >= limit) {
-      const remaining = ((resetTime - (now - userData.data.spinData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
-      return message.reply(`⚠️ আপনি আজকে ${limit} বার spin করেছেন। আবার চেষ্টা করুন ${remaining} ঘন্টা পরে।`);
+    if (userData.spinData.count >= limit) {
+      const remaining = ((resetTime - (now - userData.spinData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
+      return message.reply(`⚠️ You already played ${limit} times in last 12h. Try again after ${remaining} hours.`);
     }
 
-    userData.data.spinData.count++;
+    userData.spinData.count++;
 
     if (userData.money < betAmount) {
       return message.reply(`❌ Not enough money.\n💰 Your balance: ${userData.money}`);

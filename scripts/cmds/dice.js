@@ -1,4 +1,3 @@
-
 module.exports = {
   config: {
     name: "dice",
@@ -38,7 +37,7 @@ module.exports = {
       return api.sendMessage(`❌ You only have ${formatMoney(userData.money)} coins!`, threadID);
     }
 
-    // ===== LIMIT SYSTEM (12h / 20 plays) =====
+    // ===== LIMIT SYSTEM (database based) =====
     const now = Date.now();
     const limit = 20;
     const resetTime = 12 * 60 * 60 * 1000; // 12h

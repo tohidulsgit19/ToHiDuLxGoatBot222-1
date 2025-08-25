@@ -1,4 +1,3 @@
-
 const cooldowns = {}; // ইউজারের usage ট্র্যাক করার জন্য
 
 module.exports = {
@@ -18,12 +17,12 @@ module.exports = {
   onStart: async function ({ args, message, usersData, event }) {
     const user = event.senderID;
     const userData = await usersData.get(user);
-    
-    const now = Date.now();
-    const limit = 20; // সর্বোচ্চ খেলার সংখ্যা
-    const resetTime = 12 * 60 * 60 * 1000; // 12 ঘন্টা = ms
 
-    // ===== LIMIT SYSTEM (12h / 20 plays) =====
+    // ===== LIMIT SYSTEM (database based) =====
+    const now = Date.now();
+    const limit = 20;
+    const resetTime = 12 * 60 * 60 * 1000; // 12h
+
     if (!userData.sicboData) {
       userData.sicboData = { count: 0, lastReset: now };
     }
@@ -34,7 +33,7 @@ module.exports = {
 
     if (userData.sicboData.count >= limit) {
       const remaining = ((resetTime - (now - userData.sicboData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
-      return message.reply(`⚠️ | আপনি আজকে ${limit} বার খেলেছেন। আবার খেলতে পারবেন ${remaining} ঘন্টা পরে।`);
+      return message.reply(`⚠️ You already played ${limit} times in last 12h. Try again after ${remaining} hours.`);
     }
 
     userData.sicboData.count++;
