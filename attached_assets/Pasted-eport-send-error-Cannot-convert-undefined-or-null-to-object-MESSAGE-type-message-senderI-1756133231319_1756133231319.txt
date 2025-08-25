@@ -1,0 +1,84 @@
+eport send error: Cannot convert undefined or null to object
+MESSAGE: {
+  type: "message",
+  senderID: "100090160568733",
+  threadID: "9826242237455305",
+  args: [
+    "🚨",
+    "Unsend",
+    "Detected!",
+    "👤",
+    "MD",
+    "Tohidul",
+    "Islam",
+    "(100092006324917)",
+    "📝",
+    ""মিডিয়া",
+    "মেসেজ"",
+    "🏠",
+    "Group:",
+    "31629748789957921"
+  ],
+  body: "🚨 Unsend Detected!
+👤 MD Tohidul Islam (100092006324917)
+📝 "মিডিয়া মেসেজ"
+🏠 Group: 31629748789957921",
+  messageID: "mid.$gACLo6k4KW8mfEvc052Y4bHr7uJTW",
+  attachments: [],
+  mentions: {},
+  timestamp: "1756133190887",
+  isGroup: true,
+  participantIDs: "Array(8)"
+}
+{
+  __ar: 1,
+  error: 1545023,
+  errorSummary: 'Unable to send message',
+  errorDescription: 'Your message appears to be blank. Please enter your message and try again.',
+  isNotCritical: 1,
+  rid: 'ARozUnVMC710nF0U9h_7LCD',
+  payload: null,
+  lid: '7542534624567126854'
+}
+ERR! markAsDelivered {
+ERR! markAsDelivered   __ar: 1,
+ERR! markAsDelivered   error: 3252001,
+ERR! markAsDelivered   errorSummary: 'You’re Temporarily Blocked',
+ERR! markAsDelivered   errorDescription: {
+ERR! markAsDelivered     __html: '<ul class="uiList _4kg _6-h _6-j _6-i"><li>It looks like you were misusing this feature by going too fast. You’ve been temporarily blocked from using it.</li><li>If you think that this doesn&#039;t go against our Community Standards, <a href="https://www.facebook.com/help/contact/571927962827151?additional_content=AehAW90kWQIwSyGjLOUVbRgN7-O0TFdWbKVaR01YWdHeD-DOBr_rfeCHiyyW5s54yG_51bMuOPrKxn8fcZ-EBtZrBAXMkYmcZp68Ag-SUg55aHsgFMrKyU908BGOIjFbbnytBAKaV5NA7Y8L9VpicchI2SHFtXANEnUI3T0Dl4g0UFfcQTfx1KPdxwA0zWaCPiMaigLIuZCW2OdaHq5MA6s0JDi0gF73GhtqNHR1J81T50mon4_SkM_jmepP_0eXVuw7Wpu0_h8bYJrcYfn4FQh0IR-Z4JPP-LbDz2euXBXROuNZiOosF1EZZJb5uu2hpPc1uAXbbegNk8BTCE16AqTnT_Z0B7Cw55l_cbGkNhBO4807NKg66ikr094RN-P0neuwT8_scOiuB14R4Gvz8wG_Yqb744wl9tWmR840egIs-g" target="_blank">let us know</a>.</li></ul>'
+ERR! markAsDelivered   },
+ERR! markAsDelivered   blockedAction: true,
+ERR! markAsDelivered   isNotCritical: 1,
+ERR! markAsDelivered   rid: 'A2MHydfaanScecdnfIfhN-o',
+ERR! markAsDelivered   payload: null,
+ERR! markAsDelivered   hsrp: {
+ERR! markAsDelivered     hblp: {
+ERR! markAsDelivered       consistency: [Object],
+ERR! markAsDelivered       rsrcMap: [Object],
+ERR! markAsDelivered       indexUpgrades: [Object]
+ERR! markAsDelivered     }
+ERR! markAsDelivered   },
+ERR! markAsDelivered   allResources: [ 'R7+5WVE' ],
+ERR! markAsDelivered   lid: '7542534623740110475'
+ERR! markAsDelivered }
+ERR! markAsDelivered {
+ERR! markAsDelivered   __ar: 1,
+ERR! markAsDelivered   error: 3252001,
+ERR! markAsDelivered   errorSummary: 'You’re Temporarily Blocked',
+ERR! markAsDelivered   errorDescription: {
+ERR! markAsDelivered     __html: '<ul class="uiList _4kg _6-h _6-j _6-i"><li>It looks like you were misusing this feature by going too fast. You’ve been temporarily blocked from using it.</li><li>If you think that this doesn&#039;t go against our Community Standards, <a href="https://www.facebook.com/help/contact/571927962827151?additional_content=AehAW90kWQIwSyGjLOUVbRgN7-O0TFdWbKVaR01YWdHeD-DOBr_rfeCHiyyW5s54yG_51bMuOPrKxn8fcZ-EBtZrBAXMkYmcZp68Ag-SUg55aHsgFMrKyU908BGOIjFbbnytBAKaV5NA7Y8L9VpicchI2SHFtXANEnUI3T0Dl4g0UFfcQTfx1KPdxwA0zWaCPiMaigLIuZCW2OdaHq5MA6s0JDi0gF73GhtqNHR1J81T50mon4_SkM_jmepP_0eXVuw7Wpu0_h8bYJrcYfn4FQh0IR-Z4JPP-LbDz2euXBXROuNZiOosF1EZZJb5uu2hpPc1uAXbbegNk8BTCE16AqTnT_Z0B7Cw55l_cbGkNhBO4807NKg66ikr094RN-P0neuwT8_scOiuB14R4Gvz8wG_Yqb744wl9tWmR840egIs-g" target="_blank">let us know</a>.</li></ul>'
+ERR! markAsDelivered   },
+ERR! markAsDelivered   blockedAction: true,
+ERR! markAsDelivered   isNotCritical: 1,
+ERR! markAsDelivered   rid: 'A2MHydfaanScecdnfIfhN-o',
+ERR! markAsDelivered   payload: null,
+ERR! markAsDelivered   hsrp: {
+ERR! markAsDelivered     hblp: {
+ERR! markAsDelivered       consistency: [Object],
+ERR! markAsDelivered       rsrcMap: [Object],
+ERR! markAsDelivered       indexUpgrades: [Object]
+ERR! markAsDelivered     }
+ERR! markAsDelivered   },
+ERR! markAsDelivered   allResources: [ 'R7+5WVE' ],
+ERR! markAsDelivered   lid: '7542534623740110475'
+ERR! markAsDelivered }
