@@ -55,25 +55,25 @@ module.exports = {
     userData.data = userData.data || {};
     userData.data.totalSpinWin = userData.data.totalSpinWin || 0;
 
-    // ===== LIMIT SYSTEM (database based) =====
+    // ===== UNIVERSAL GAME LIMIT SYSTEM =====
     const now = Date.now();
     const limit = 20;
     const resetTime = 12 * 60 * 60 * 1000; // 12h
 
-    if (!userData.spinData) {
-      userData.spinData = { count: 0, lastReset: now };
+    if (!userData.gameData) {
+      userData.gameData = { count: 0, lastReset: now };
     }
 
-    if (now - userData.spinData.lastReset > resetTime) {
-      userData.spinData = { count: 0, lastReset: now };
+    if (now - userData.gameData.lastReset > resetTime) {
+      userData.gameData = { count: 0, lastReset: now };
     }
 
-    if (userData.spinData.count >= limit) {
-      const remaining = ((resetTime - (now - userData.spinData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
-      return message.reply(`⚠️ You already played ${limit} times in last 12h. Try again after ${remaining} hours.`);
+    if (userData.gameData.count >= limit) {
+      const remaining = ((resetTime - (now - userData.gameData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
+      return message.reply(`⚠️ You already played ${limit} casino games in last 12h. Try again after ${remaining} hours.`);
     }
 
-    userData.spinData.count++;
+    userData.gameData.count++;
 
     if (userData.money < betAmount) {
       return message.reply(`❌ Not enough money.\n💰 Your balance: ${userData.money}`);
@@ -121,7 +121,7 @@ module.exports = {
     await usersData.set(senderID, userData);
 
     return message.reply(
-      `🎰 SLOT MACHINE 🎰\n[ ${slot1} | ${slot2} | ${slot3} ]\n\n${resultText}\n\n💵 Bet: ${betAmount}$\n💸 Won: ${reward}$\n💰 Balance: ${userData.money}$\n\n🌀 Spins used: ${userData.spinData.count}/${limit}`
+      `🎰 SLOT MACHINE 🎰\n[ ${slot1} | ${slot2} | ${slot3} ]\n\n${resultText}\n\n💵 Bet: ${betAmount}$\n💸 Won: ${reward}$\n💰 Balance: ${userData.money}$\n\n🎮 Casino games played: ${userData.gameData.count}/${limit}`
     );
   }
 };

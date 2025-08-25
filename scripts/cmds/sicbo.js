@@ -23,20 +23,20 @@ module.exports = {
     const limit = 20;
     const resetTime = 12 * 60 * 60 * 1000; // 12h
 
-    if (!userData.sicboData) {
-      userData.sicboData = { count: 0, lastReset: now };
+    if (!userData.gameData) {
+      userData.gameData = { count: 0, lastReset: now };
     }
 
-    if (now - userData.sicboData.lastReset > resetTime) {
-      userData.sicboData = { count: 0, lastReset: now };
+    if (now - userData.gameData.lastReset > resetTime) {
+      userData.gameData = { count: 0, lastReset: now };
     }
 
-    if (userData.sicboData.count >= limit) {
-      const remaining = ((resetTime - (now - userData.sicboData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
+    if (userData.gameData.count >= limit) {
+      const remaining = ((resetTime - (now - userData.gameData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
       return message.reply(`⚠️ You already played ${limit} times in last 12h. Try again after ${remaining} hours.`);
     }
 
-    userData.sicboData.count++;
+    userData.gameData.count++;
 
     // -------- গেম লজিক --------
     const betType = args[0]?.toLowerCase();
@@ -93,13 +93,13 @@ module.exports = {
       userData.money += winAmount;
       await usersData.set(user, userData);
       return message.edit(spinMsg.messageID,
-        `🎲 [ ${resultString} ]\n\n🎉 You won! Total: ${total} (${outcome})\n💰 Won: ${winAmount} coins\n💵 Balance: ${userData.money}\n🎲 Plays used: ${userData.sicboData.count}/${limit}`
+        `🎲 [ ${resultString} ]\n\n🎉 You won! Total: ${total} (${outcome})\n💰 Won: ${winAmount} coins\n🎰 Balance: ${userData.money}\n\n🎮 Casino games played: ${userData.gameData.count}/${limit}`
       );
     } else {
       userData.money -= betAmount;
       await usersData.set(user, userData);
       return message.edit(spinMsg.messageID,
-        `🎲 [ ${resultString} ]\n\n😞 You lost! Total: ${total} (${outcome})\n💸 Lost: ${betAmount} coins\n💵 Balance: ${userData.money}\n🎲 Plays used: ${userData.sicboData.count}/${limit}`
+        `🎲 [ ${resultString} ]\n\n😞 You lost! Total: ${total} (${outcome})\n💸 Lost: ${betAmount} coins\n🎰 Balance: ${userData.money}\n\n🎮 Casino games played: ${userData.gameData.count}/${limit}`
       );
     }
   }

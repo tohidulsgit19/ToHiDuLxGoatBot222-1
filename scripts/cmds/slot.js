@@ -39,20 +39,20 @@ module.exports = {
     const limit = 20;
     const resetTime = 12 * 60 * 60 * 1000; // 12 ঘন্টা
 
-    if (!user.slotData) {
-      user.slotData = { count: 0, lastReset: now };
+    if (!user.gameData) {
+      user.gameData = { count: 0, lastReset: now };
     }
 
-    if (now - user.slotData.lastReset > resetTime) {
-      user.slotData = { count: 0, lastReset: now };
+    if (now - user.gameData.lastReset > resetTime) {
+      user.gameData = { count: 0, lastReset: now };
     }
 
-    if (user.slotData.count >= limit) {
-      const remaining = ((resetTime - (now - user.slotData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
-      return message.reply(`⚠️ You already played ${limit} times in last 12h. Try again after ${remaining} hours.`);
+    if (user.gameData.count >= limit) {
+      const remaining = ((resetTime - (now - user.gameData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
+      return message.reply(`⚠️ You already played ${limit} casino games in last 12h. Try again after ${remaining} hours.`);
     }
 
-    user.slotData.count++;
+    user.gameData.count++;
     // ===============================================
 
     const symbols = ["🍒", "🍋", "🍇", "🍉", "⭐", "7️⃣"];
@@ -88,7 +88,7 @@ module.exports = {
       `${outcome}\n\n` +
       `${winnings >= 0 ? `+${formatMoney(winnings)}` : `-${formatMoney(bet)}`}\n\n` +
       `💰 Bal: ${formatMoney(newBalance)}\n\n` +
-      `🌀 Spins used: ${user.slotData.count}/${limit}`;
+      `🌀 Spins used: ${user.gameData.count}/${limit}`;
 
     return message.reply(result);
   }

@@ -44,7 +44,7 @@ module.exports = {
       return message.reply(getLang("not_enough_money"));
     }
 
-    // ===== LIMIT SYSTEM (12h / 20 spins) =====
+    // ===== UNIVERSAL GAME LIMIT SYSTEM =====
     const now = Date.now();
     const limit = 20;
     const resetTime = 12 * 60 * 60 * 1000; // 12h

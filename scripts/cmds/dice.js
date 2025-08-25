@@ -37,25 +37,25 @@ module.exports = {
       return api.sendMessage(`❌ You only have ${formatMoney(userData.money)} coins!`, threadID);
     }
 
-    // ===== LIMIT SYSTEM (database based) =====
+    // ===== UNIVERSAL GAME LIMIT SYSTEM =====
     const now = Date.now();
     const limit = 20;
     const resetTime = 12 * 60 * 60 * 1000; // 12h
 
-    if (!userData.diceData) {
-      userData.diceData = { count: 0, lastReset: now };
+    if (!userData.gameData) {
+      userData.gameData = { count: 0, lastReset: now };
     }
 
-    if (now - userData.diceData.lastReset > resetTime) {
-      userData.diceData = { count: 0, lastReset: now };
+    if (now - userData.gameData.lastReset > resetTime) {
+      userData.gameData = { count: 0, lastReset: now };
     }
 
-    if (userData.diceData.count >= limit) {
-      const remaining = ((resetTime - (now - userData.diceData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
+    if (userData.gameData.count >= limit) {
+      const remaining = ((resetTime - (now - userData.gameData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
       return api.sendMessage(`⚠️ আপনি আজকে ${limit} বার dice খেলেছেন। আবার খেলতে পারবেন ${remaining} ঘন্টা পরে।`, threadID);
     }
 
-    userData.diceData.count++;
+    userData.gameData.count++;
 
     const diceRoll = Math.floor(Math.random() * 6) + 1;
     let resultMessage = `🎲 Dice rolled: ${diceRoll}\n`;
@@ -80,7 +80,7 @@ module.exports = {
     userData.money = userData.money - betAmount + winAmount;
     await usersData.set(senderID, userData);
 
-    resultMessage += `\n💵 Balance: ${formatMoney(userData.money)}\n🎲 Plays used: ${userData.diceData.count}/${limit}`;
+    resultMessage += `\n💵 Balance: ${formatMoney(userData.money)}\n🎮 Casino games played: ${userData.gameData.count}/${limit}`;
 
     return api.sendMessage(resultMessage, threadID);
   }
