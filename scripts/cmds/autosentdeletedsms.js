@@ -5,7 +5,6 @@ const path = require("path");
 
 const CACHE_FILE = path.join(__dirname, "..", "cache", "unsentMessages.json");
 const DELETE_AFTER = 10 * 60 * 1000; // 10 minutes
-const LOG_GROUP_ID = "9826242237455305"; // আপনার গ্রুপ আইডি
 
 // Cache file ensure করা
 function ensureCacheFile() {
@@ -89,7 +88,7 @@ async function getUserInfo(api, userID) {
 module.exports = {
   config: {
     name: "autosentdeletedsms",
-    version: "2.0",
+    version: "3.0",
     author: "Tohidul (Advanced Version)",
     shortDescription: "Advanced unsend message detector",
     longDescription: "Advanced unsend message detector with better features",
@@ -124,12 +123,6 @@ module.exports = {
     }, 30000);
 
     console.log("✅ Auto Unsend Detector সিস্টেম চালু হয়েছে!");
-    
-    try {
-      await api.sendMessage("🛡️ উন্নত আনসেন্ড ডিটেক্টর সিস্টেম চালু হয়েছে!", LOG_GROUP_ID);
-    } catch (error) {
-      console.log("Log group এ message পাঠাতে সমস্যা:", error.message);
-    }
   },
 
   // সব মেসেজ save করা
@@ -162,7 +155,7 @@ module.exports = {
     saveStore(store);
   },
 
-  // Unsend detect করা
+  // Unsend detect করা - এখানেই main fix
   handleEvent: async function ({ api, event }) {
     if (event.type !== "message_unsend") return;
 
@@ -180,7 +173,7 @@ module.exports = {
       const threadInfo = await getThreadInfo(api, savedMsg.threadID);
 
       // Report message তৈরি করা
-      let reportMsg = `🚨 𝗔𝗻𝘀𝗲𝗻𝗱 𝗗𝗲𝘁𝗲𝗰𝘁𝗲𝗱 🚨
+      let reportMsg = `🚨 𝗨𝗻𝘀𝗲𝗻𝗱 𝗗𝗲𝘁𝗲𝗰𝘁𝗲𝗱 🚨
 ━━━━━━━━━━━━━━━━━━━━━━━━
 👤 প্রেরক: ${savedMsg.senderName}
 🆔 ইউজার আইডি: ${savedMsg.senderID}
@@ -214,7 +207,7 @@ ${threadInfo.type}: ${threadInfo.name}
       if (savedMsg.attachments && savedMsg.attachments.length > 0) {
         reportMsg += `📎 সংযুক্তি: ${savedMsg.attachments.length}টি ফাইল\n`;
         
-        for (let i = 0; i < Math.min(savedMsg.attachments.length, 5); i++) { // Max 5 attachments
+        for (let i = 0; i < Math.min(savedMsg.attachments.length, 10); i++) { // Max 10 attachments
           const att = savedMsg.attachments[i];
           const attType = getAttachmentType(att);
           reportMsg += `${i + 1}. ${attType}\n`;
@@ -224,8 +217,8 @@ ${threadInfo.type}: ${threadInfo.name}
             try {
               const response = await axios.get(url, { 
                 responseType: "arraybuffer",
-                timeout: 15000,
-                maxContentLength: 50 * 1024 * 1024, // 50MB limit
+                timeout: 30000, // 30 seconds timeout
+                maxContentLength: 100 * 1024 * 1024, // 100MB limit
                 headers: {
                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
@@ -252,7 +245,7 @@ ${threadInfo.type}: ${threadInfo.name}
 🛡️ কোনো মেসেজই লুকিয়ে থাকতে পারবে না!
 🔍 Total Saved Messages: ${Object.keys(store).length}`;
 
-      // Report send করা
+      // Report send করা - সেই থ্রেডেই পাঠানো হবে যেখানে unsend হয়েছে
       const messageOptions = {
         body: reportMsg
       };
@@ -261,9 +254,13 @@ ${threadInfo.type}: ${threadInfo.name}
         messageOptions.attachment = files;
       }
 
-      api.sendMessage(messageOptions, LOG_GROUP_ID, (error, info) => {
+      // Same thread এ পাঠানো - এটাই main fix
+      api.sendMessage(messageOptions, savedMsg.threadID, (error, info) => {
         if (error) {
           console.error("Unsend report পাঠাতে ত্রুটি:", error.message);
+          
+          // Fallback: কোনো error হলে text-only message পাঠানো
+          api.sendMessage(`🚨 Unsend Detected 🚨\n👤 User: ${savedMsg.senderName}\n🆔 ID: ${savedMsg.senderID}\n📝 Message: "${savedMsg.body || 'Media message'}"\n⚠️ Attachment processing failed`, savedMsg.threadID);
         } else {
           console.log(`✅ Unsend report পাঠানো হয়েছে: ${event.messageID}`);
         }
@@ -287,9 +284,9 @@ ${threadInfo.type}: ${threadInfo.name}
     } catch (error) {
       console.error("HandleEvent এ ত্রুটি:", error);
       
-      // Fallback message
+      // Fallback message - same thread এ
       try {
-        await api.sendMessage(`🚨 Unsend Detected 🚨\n👤 User: ${savedMsg.senderName}\n🆔 ID: ${savedMsg.senderID}\n📝 Message: "${savedMsg.body || 'No text'}"\n⚠️ Error processing attachments`, LOG_GROUP_ID);
+        await api.sendMessage(`🚨 Unsend Detected 🚨\n👤 User: ${savedMsg.senderName}\n🆔 ID: ${savedMsg.senderID}\n📝 Message: "${savedMsg.body || 'No text'}"\n⚠️ Processing error occurred`, savedMsg.threadID);
       } catch (fallbackError) {
         console.error("Fallback message error:", fallbackError);
       }
