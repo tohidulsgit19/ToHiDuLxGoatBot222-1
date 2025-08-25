@@ -817,5 +817,16 @@
     "timestamp": 1756132179432,
     "messageReply": null,
     "isGroup": true
+  },
+  "mid.$gAHBfFsT11SGfEufdqmY4aKQ74EWk": {
+    "senderID": "100030050624714",
+    "senderName": "Ma KI Ma",
+    "threadID": "31629748789957921",
+    "body": "Khara hala thik. Kori",
+    "attachments": [],
+    "mentions": {},
+    "timestamp": 1756132186862,
+    "messageReply": null,
+    "isGroup": true
   }
 }
