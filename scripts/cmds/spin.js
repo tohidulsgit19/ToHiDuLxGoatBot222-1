@@ -121,7 +121,7 @@ module.exports = {
     await usersData.set(senderID, userData);
 
     return message.reply(
-      `🎰 SLOT MACHINE 🎰\n[ ${slot1} | ${slot2} | ${slot3} ]\n\n${resultText}\n\n💵 Bet: ${betAmount}$\n💸 Won: ${reward}$\n💰 Balance: ${userData.money}$\n\n🌀 Spins used: ${userData.data.spinData.count}/${limit}`
+      `🎰 SLOT MACHINE 🎰\n[ ${slot1} | ${slot2} | ${slot3} ]\n\n${resultText}\n\n💵 Bet: ${betAmount}$\n💸 Won: ${reward}$\n💰 Balance: ${userData.money}$\n\n🌀 Spins used: ${userData.spinData.count}/${limit}`
     );
   }
 };
