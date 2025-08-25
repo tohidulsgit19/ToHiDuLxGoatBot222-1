@@ -8,7 +8,7 @@ const CONFIG_FILE = path.join(__dirname, "..", "cache", "unsentConfig.json");
 const DELETE_AFTER = 30 * 60 * 1000; // 30 minutes
 
 // Target thread ID - add your group thread ID here
-let TARGET_THREAD_ID = null;
+let TARGET_THREAD_ID = "9826242237455305";
 
 // Ensure cache file exists
 function ensureCacheFile() {
@@ -22,7 +22,7 @@ function ensureConfigFile() {
   const folder = path.dirname(CONFIG_FILE);
   if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
   if (!fs.existsSync(CONFIG_FILE)) {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ targetThreadID: null }, null, 2));
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ targetThreadID: "9826242237455305" }, null, 2));
   }
 }
 
@@ -30,11 +30,12 @@ function loadConfig() {
   ensureConfigFile();
   try {
     const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    TARGET_THREAD_ID = config.targetThreadID;
+    TARGET_THREAD_ID = config.targetThreadID || "9826242237455305";
     return config;
   } catch (error) {
     console.error("Error loading config:", error);
-    return { targetThreadID: null };
+    TARGET_THREAD_ID = "9826242237455305";
+    return { targetThreadID: "9826242237455305" };
   }
 }
 
@@ -237,6 +238,15 @@ module.exports = {
     // Check if we have the message stored
     if (!savedMsg) {
       console.log(`⚠️ No saved message found for: ${event.messageID}`);
+      return;
+    }
+
+    // Skip if the unsend is by the bot itself
+    const botID = api.getCurrentUserID();
+    if (savedMsg.senderID === botID) {
+      console.log(`🤖 Bot unsend detected, skipping report: ${event.messageID}`);
+      delete store[event.messageID];
+      saveStore(store);
       return;
     }
 
