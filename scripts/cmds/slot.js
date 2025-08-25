@@ -1,3 +1,4 @@
+
 const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
@@ -20,6 +21,20 @@ module.exports = {
     const bet = parseInt(args[0]);
     const user = await usersData.get(senderID);
 
+    const formatMoney = (n) => n >= 1e6 ? `${(n/1e6).toFixed(1)}M 💰` : n.toLocaleString() + " 💵";
+
+    if (isNaN(bet) || bet <= 0) return message.reply("❌ Enter a valid amount.");
+    
+    // ===== BET LIMITS =====
+    if (bet < 50) {
+      return message.reply("❌ Minimum bet is 50 coins!");
+    }
+    if (bet > 1000000) {
+      return message.reply("❌ Maximum bet is 1M coins!");
+    }
+
+    if (user.money < bet) return message.reply(`💸 Need ${formatMoney(bet - user.money)} more.`);
+
     // ========= LIMIT SYSTEM (usersData ভিত্তিক) =========
     const now = Date.now();
     const limit = 20;
@@ -40,11 +55,6 @@ module.exports = {
 
     user.slotsData.count++;
     // ===============================================
-
-    const formatMoney = (n) => n >= 1e6 ? `${(n/1e6).toFixed(1)}M 💰` : n.toLocaleString() + " 💵";
-
-    if (isNaN(bet) || bet <= 0) return message.reply("❌ Enter a valid amount.");
-    if (user.money < bet) return message.reply(`💸 Need ${formatMoney(bet - user.money)} more.`);
 
     const symbols = ["🍒", "🍋", "🍇", "🍉", "⭐", "7️⃣"];
     const roll = () => symbols[Math.floor(Math.random() * symbols.length)];

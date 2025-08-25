@@ -1,3 +1,4 @@
+
 module.exports = {
   config: {
     name: "spin",
@@ -42,10 +43,38 @@ module.exports = {
       return message.reply("❌ Usage:\n/spin <amount>\n/spin top");
     }
 
+    // ===== BET LIMITS =====
+    if (betAmount < 50) {
+      return message.reply("❌ Minimum bet is 50 coins!");
+    }
+    if (betAmount > 1000000) {
+      return message.reply("❌ Maximum bet is 1M coins!");
+    }
+
     const userData = await usersData.get(senderID) || {};
     userData.money = userData.money || 0;
     userData.data = userData.data || {};
     userData.data.totalSpinWin = userData.data.totalSpinWin || 0;
+
+    // ===== LIMIT SYSTEM (12h / 20 spins) =====
+    const now = Date.now();
+    const limit = 20;
+    const resetTime = 12 * 60 * 60 * 1000; // 12h
+
+    if (!userData.data.spinData) {
+      userData.data.spinData = { count: 0, lastReset: now };
+    }
+
+    if (now - userData.data.spinData.lastReset > resetTime) {
+      userData.data.spinData = { count: 0, lastReset: now };
+    }
+
+    if (userData.data.spinData.count >= limit) {
+      const remaining = ((resetTime - (now - userData.data.spinData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
+      return message.reply(`⚠️ আপনি আজকে ${limit} বার spin করেছেন। আবার চেষ্টা করুন ${remaining} ঘন্টা পরে।`);
+    }
+
+    userData.data.spinData.count++;
 
     if (userData.money < betAmount) {
       return message.reply(`❌ Not enough money.\n💰 Your balance: ${userData.money}`);
@@ -93,7 +122,7 @@ module.exports = {
     await usersData.set(senderID, userData);
 
     return message.reply(
-      `🎰 SLOT MACHINE 🎰\n[ ${slot1} | ${slot2} | ${slot3} ]\n\n${resultText}\n\n💵 Bet: ${betAmount}$\n💸 Won: ${reward}$\n💰 Balance: ${userData.money}$`
+      `🎰 SLOT MACHINE 🎰\n[ ${slot1} | ${slot2} | ${slot3} ]\n\n${resultText}\n\n💵 Bet: ${betAmount}$\n💸 Won: ${reward}$\n💰 Balance: ${userData.money}$\n\n🌀 Spins used: ${userData.data.spinData.count}/${limit}`
     );
   }
 };

@@ -1,3 +1,4 @@
+
 const cooldowns = {}; // ইউজারের usage ট্র্যাক করার জন্য
 
 module.exports = {
@@ -16,33 +17,31 @@ module.exports = {
 
   onStart: async function ({ args, message, usersData, event }) {
     const user = event.senderID;
+    const userData = await usersData.get(user);
+    
     const now = Date.now();
     const limit = 20; // সর্বোচ্চ খেলার সংখ্যা
     const resetTime = 12 * 60 * 60 * 1000; // 12 ঘন্টা = ms
 
-    // যদি ইউজারের ডাটা না থাকে, initialize করো
-    if (!cooldowns[user]) {
-      cooldowns[user] = { count: 0, lastReset: now };
+    // ===== LIMIT SYSTEM (12h / 20 plays) =====
+    if (!userData.sicboData) {
+      userData.sicboData = { count: 0, lastReset: now };
     }
 
-    // 12 ঘন্টা পার হলে reset করো
-    if (now - cooldowns[user].lastReset > resetTime) {
-      cooldowns[user] = { count: 0, lastReset: now };
+    if (now - userData.sicboData.lastReset > resetTime) {
+      userData.sicboData = { count: 0, lastReset: now };
     }
 
-    // limit চেক করো
-    if (cooldowns[user].count >= limit) {
-      const remaining = ((resetTime - (now - cooldowns[user].lastReset)) / (60 * 60 * 1000)).toFixed(1);
+    if (userData.sicboData.count >= limit) {
+      const remaining = ((resetTime - (now - userData.sicboData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
       return message.reply(`⚠️ | আপনি আজকে ${limit} বার খেলেছেন। আবার খেলতে পারবেন ${remaining} ঘন্টা পরে।`);
     }
 
-    // count বাড়াও
-    cooldowns[user].count++;
+    userData.sicboData.count++;
 
     // -------- গেম লজিক --------
     const betType = args[0]?.toLowerCase();
     const betAmount = parseInt(args[1]);
-    const userData = await usersData.get(user);
 
     if (!["small", "big"].includes(betType)) {
       return message.reply("🙊 | Choose 'small' or 'big'.");
@@ -50,6 +49,10 @@ module.exports = {
 
     if (!Number.isInteger(betAmount) || betAmount < 50) {
       return message.reply("❌ | Please bet an amount of 50 or more.");
+    }
+
+    if (betAmount > 1000000) {
+      return message.reply("❌ | Maximum bet is 1M coins!");
     }
 
     if (betAmount > userData.money) {
@@ -70,7 +73,9 @@ module.exports = {
     const spinMsg = await message.reply("🎲 Rolling the dice...");
     const spinFrames = [
       "🎲 [ 1 | 2 | 3 ]",
-      "🎲 [ 4 | 6 | 2 ]",
+      "🎲 [ 4 | 5 | 6 ]",
+      "🎲 [ 2 | 4 | 1 ]",
+      "🎲 [ 6 | 3 | 2 ]",
       "🎲 [ 3 | 5 | 1 ]",
       "🎲 [ 6 | 2 | 4 ]",
       "🎲 [ 5 | 1 | 3 ]"
@@ -89,13 +94,13 @@ module.exports = {
       userData.money += winAmount;
       await usersData.set(user, userData);
       return message.edit(spinMsg.messageID,
-        `(\\_/)\n( •_•)\n// >[ ${resultString} ]\n\n🎉 | Congratulations! You won ${winAmount}!`
+        `🎲 [ ${resultString} ]\n\n🎉 You won! Total: ${total} (${outcome})\n💰 Won: ${winAmount} coins\n💵 Balance: ${userData.money}\n🎲 Plays used: ${userData.sicboData.count}/${limit}`
       );
     } else {
       userData.money -= betAmount;
       await usersData.set(user, userData);
       return message.edit(spinMsg.messageID,
-        `(\\_/)\n( •_•)\n// >[ ${resultString} ]\n\n😿 | You lost ${betAmount}.`
+        `🎲 [ ${resultString} ]\n\n😞 You lost! Total: ${total} (${outcome})\n💸 Lost: ${betAmount} coins\n💵 Balance: ${userData.money}\n🎲 Plays used: ${userData.sicboData.count}/${limit}`
       );
     }
   }

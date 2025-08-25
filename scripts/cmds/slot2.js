@@ -1,3 +1,4 @@
+
 module.exports = {
   config: {
     name: "slot",
@@ -13,11 +14,11 @@ module.exports = {
   },
   langs: {
     en: {
-      invalid_amount: "Put a big 🌝 number, you can win twice the risk of my son 🌝🙌",
-      not_enough_money: "You have this amount, see your balance then 🌝🤣",
+      invalid_amount: "❌ Enter a valid bet amount (50 - 1M coins)!",
+      not_enough_money: "❌ You don't have enough money! Check your balance.",
       limit_reached: "⚠️ You already played %1$ times in last 12h. Try again after %2$ hours.",
-      win_message: "You win %1$💗!\n[ %2$ | %3$ | %4$ ]",
-      lose_message: "You lost %1$🥲.\n[ %2$ | %3$ | %4$ ]",
+      win_message: "🎉 You win %1$💗!\n[ %2$ | %3$ | %4$ ]",
+      lose_message: "😞 You lost %1$🥲.\n[ %2$ | %3$ | %4$ ]",
       jackpot_message: "🎉 JACKPOT! You won %1$!\n[ %2$ | %3$ | %4$ ]",
     },
   },
@@ -26,6 +27,22 @@ module.exports = {
     const { senderID } = event;
     const userData = await usersData.get(senderID);
     const amount = parseInt(args[0]);
+
+    if (isNaN(amount) || amount <= 0) {
+      return message.reply(getLang("invalid_amount"));
+    }
+
+    // ===== BET LIMITS =====
+    if (amount < 50) {
+      return message.reply("❌ Minimum bet is 50 coins!");
+    }
+    if (amount > 1000000) {
+      return message.reply("❌ Maximum bet is 1M coins!");
+    }
+
+    if (amount > userData.money) {
+      return message.reply(getLang("not_enough_money"));
+    }
 
     // ===== LIMIT SYSTEM (12h / 20 spins) =====
     const now = Date.now();
@@ -47,14 +64,6 @@ module.exports = {
 
     userData.slot2Data.count++;
     // ==========================================
-
-    if (isNaN(amount) || amount <= 0) {
-      return message.reply(getLang("invalid_amount"));
-    }
-
-    if (amount > userData.money) {
-      return message.reply(getLang("not_enough_money"));
-    }
 
     const slots = ["🍒", "🍇", "🍊", "🍉", "🍋", "🍎", "🍓", "🍑", "🥝"];
     const slot1 = slots[Math.floor(Math.random() * slots.length)];
@@ -78,7 +87,7 @@ module.exports = {
     }
 
     return message.reply(
-      messageText + `\n🌀 Spins used: ${userData.slot2Data.count}/${limit}`
+      messageText + `\n💰 Balance: ${userData.money}\n🌀 Spins used: ${userData.slot2Data.count}/${limit}`
     );
   },
 };
