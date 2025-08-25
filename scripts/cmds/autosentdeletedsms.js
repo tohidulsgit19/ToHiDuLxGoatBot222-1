@@ -135,14 +135,14 @@ function cleanupFile(filePath) {
 module.exports = {
   config: {
     name: "autosentdeletedsms",
-    version: "7.0",
-    author: "Tohidul (Enhanced Version)",
-    shortDescription: "Auto detect unsent messages",
-    longDescription: "Automatically detects and logs unsent messages with attachments in Bengali",
+    version: "8.0",
+    author: "Tohidul (Photo/Image Fixed Version)",
+    shortDescription: "Auto detect unsent messages with photo support",
+    longDescription: "Automatically detects and logs unsent messages including photos, images and all attachments in Bengali",
     category: "utility",
     guide: {
-      en: "This command automatically tracks all unsent messages and logs them.\n\nCommands:\n- setgc <threadID> - Set target group for unsend reports\n- checkgc - Check current target group\n- removegc - Remove target group (send to original thread)",
-      vi: "Tự động theo dõi và ghi lại các tin nhắn bị thu hồi."
+      en: "This command automatically tracks all unsent messages including photos and images.\n\nCommands:\n- setgc <threadID> - Set target group for unsend reports\n- checkgc - Check current target group\n- removegc - Remove target group (send to original thread)",
+      vi: "Tự động theo dõi và ghi lại các tin nhắn bị thu hồi bao gồm cả hình ảnh."
     }
   },
 
@@ -236,22 +236,40 @@ module.exports = {
       senderName = `User ${event.senderID}`;
     }
 
-    // Process attachments more carefully - FIXED for photos
+    // Enhanced attachment processing - IMPROVED for photos/images
     let processedAttachments = [];
     if (event.attachments && Array.isArray(event.attachments) && event.attachments.length > 0) {
       processedAttachments = event.attachments.map((att, index) => {
         if (!att) return null;
         
+        // Collect all possible URL sources for better success rate
+        const urlSources = [
+          att.url,
+          att.previewUrl, 
+          att.largePreview,
+          att.thumbnailUrl,
+          att.hiresUrl,
+          att.preview_url,
+          att.large_preview_url,
+          att.thumbnail_url,
+          att.hires_url
+        ].filter(url => url && typeof url === 'string');
+        
         return {
           type: att.type || 'unknown',
-          url: att.url || att.previewUrl || att.largePreview || att.thumbnailUrl || att.hiresUrl,
+          url: urlSources[0] || null, // Primary URL
+          previewUrl: att.previewUrl || att.preview_url || null,
+          largePreview: att.largePreview || att.large_preview_url || null,
+          thumbnailUrl: att.thumbnailUrl || att.thumbnail_url || null,
+          hiresUrl: att.hiresUrl || att.hires_url || null,
           filename: att.filename || `attachment_${Date.now()}_${index}`,
           ID: att.ID || att.id || null,
           width: att.width || null,
           height: att.height || null,
-          size: att.size || null
+          size: att.size || null,
+          allUrls: urlSources // Keep all URLs for fallback
         };
-      }).filter(att => att !== null);
+      }).filter(att => att !== null && (att.url || att.allUrls.length > 0));
     }
 
     // Store message data - FIXED mentions handling
@@ -315,129 +333,172 @@ module.exports = {
     }
 
     try {
-      // Create report message
+      // Create report message - FIXED null handling
       let reportMsg = `🚨 𝗨𝗻𝘀𝗲𝗻𝗱 𝗗𝗲𝘁𝗲𝗰𝘁𝗲𝗱 🚨\n`;
       reportMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-      reportMsg += `👤 প্রেরক: ${savedMsg.senderName}\n`;
-      reportMsg += `🆔 ইউজার আইডি: ${savedMsg.senderID}\n`;
+      reportMsg += `👤 প্রেরক: ${savedMsg.senderName || 'Unknown User'}\n`;
+      reportMsg += `🆔 ইউজার আইডি: ${savedMsg.senderID || 'Unknown'}\n`;
       reportMsg += `🕒 সময়: ${formatTime(new Date())}\n`;
-      reportMsg += `📨 মেসেজ আইডি: ${event.messageID}\n`;
+      reportMsg += `📨 মেসেজ আইডি: ${event.messageID || 'Unknown'}\n`;
       reportMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
-      // Add message content
-      if (savedMsg.body && savedMsg.body.trim()) {
-        reportMsg += `📝 মেসেজ:\n"${savedMsg.body}"\n\n`;
+      // Add message content - FIXED null handling
+      if (savedMsg.body && String(savedMsg.body).trim()) {
+        reportMsg += `📝 মেসেজ:\n"${String(savedMsg.body)}"\n\n`;
       } else {
         reportMsg += `📝 মেসেজ: [খালি বা মিডিয়া মেসেজ]\n\n`;
       }
 
       // Add mentions - FIXED to handle null/undefined safely
-      if (savedMsg.mentions && typeof savedMsg.mentions === 'object') {
-        const mentionEntries = Object.entries(savedMsg.mentions);
-        if (mentionEntries.length > 0) {
-          reportMsg += `👥 উল্লেখিত ব্যক্তিরা:\n`;
-          for (const [uid, name] of mentionEntries) {
-            if (name && uid) {
-              reportMsg += `• ${String(name).replace('@', '')} (${uid})\n`;
+      if (savedMsg.mentions && typeof savedMsg.mentions === 'object' && savedMsg.mentions !== null) {
+        try {
+          const mentionEntries = Object.entries(savedMsg.mentions);
+          if (mentionEntries.length > 0) {
+            reportMsg += `👥 উল্লেখিত ব্যক্তিরা:\n`;
+            for (const [uid, name] of mentionEntries) {
+              if (name && uid) {
+                reportMsg += `• ${String(name).replace('@', '')} (${uid})\n`;
+              }
             }
+            reportMsg += `\n`;
           }
-          reportMsg += `\n`;
+        } catch (mentionError) {
+          console.error("Mention processing error:", mentionError.message);
         }
       }
 
-      // Add reply info  
+      // Add reply info - FIXED null handling
       if (savedMsg.messageReply && savedMsg.messageReply.body) {
-        reportMsg += `↩️ রিপ্লাই করা মেসেজ: "${savedMsg.messageReply.body}"\n\n`;
+        reportMsg += `↩️ রিপ্লাই করা মেসেজ: "${String(savedMsg.messageReply.body)}"\n\n`;
       }
 
-      // Handle attachments - IMPROVED
+      // Handle attachments - ENHANCED with better photo/image support
       const attachmentFiles = [];
-      if (savedMsg.attachments && savedMsg.attachments.length > 0) {
+      if (savedMsg.attachments && Array.isArray(savedMsg.attachments) && savedMsg.attachments.length > 0) {
         reportMsg += `📎 সংযুক্তি: ${savedMsg.attachments.length}টি\n`;
         
-        for (let i = 0; i < Math.min(savedMsg.attachments.length, 5); i++) {
+        for (let i = 0; i < Math.min(savedMsg.attachments.length, 10); i++) {
           const att = savedMsg.attachments[i];
+          if (!att) continue;
+          
           const attType = getAttachmentType(att);
           reportMsg += `${i + 1}. ${attType}\n`;
           
-          // Try multiple URL sources
+          // Enhanced URL collection for photos/images
           const possibleUrls = [
             att.url,
             att.previewUrl, 
             att.largePreview,
             att.hiresUrl,
-            att.thumbnailUrl
-          ].filter(Boolean);
+            att.thumbnailUrl,
+            att.preview_url,
+            att.large_preview_url,
+            att.hires_url,
+            att.thumbnail_url
+          ].filter(url => url && typeof url === 'string' && url.length > 0);
           
           let downloaded = false;
           
+          // Try downloading from each URL
           for (const url of possibleUrls) {
             if (downloaded) break;
             
             try {
-              console.log(`📥 Downloading attachment ${i} from: ${url}`);
+              console.log(`📥 Downloading ${attType} ${i} from: ${url.substring(0, 100)}...`);
               
               const response = await axios.get(url, { 
                 responseType: "arraybuffer",
-                timeout: 15000,
-                maxContentLength: 50 * 1024 * 1024, // 50MB limit
+                timeout: 20000, // Increased timeout
+                maxContentLength: 100 * 1024 * 1024, // 100MB limit
                 headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  'Accept': 'image/*, video/*, audio/*, */*',
+                  'Accept-Encoding': 'gzip, deflate, br',
+                  'Connection': 'keep-alive'
                 }
               });
               
               if (response.data && response.data.byteLength > 0) {
-                // Get extension from URL or content-type
-                let ext = path.extname(new URL(url).pathname).toLowerCase();
-                if (!ext || ext === '.') {
+                // Better extension detection
+                let ext = '.bin';
+                
+                // Try to get extension from URL first
+                try {
+                  const urlPath = new URL(url).pathname;
+                  const urlExt = path.extname(urlPath).toLowerCase();
+                  if (urlExt && urlExt.length > 1) {
+                    ext = urlExt;
+                  }
+                } catch (urlError) {
+                  // Fallback to content-type
                   const contentType = response.headers['content-type'] || '';
-                  if (contentType.includes('image')) ext = '.jpg';
-                  else if (contentType.includes('video')) ext = '.mp4';
-                  else if (contentType.includes('audio')) ext = '.mp3';
-                  else ext = '.bin';
+                  if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) ext = '.jpg';
+                  else if (contentType.includes('image/png')) ext = '.png';
+                  else if (contentType.includes('image/gif')) ext = '.gif';
+                  else if (contentType.includes('image/webp')) ext = '.webp';
+                  else if (contentType.includes('video/mp4')) ext = '.mp4';
+                  else if (contentType.includes('video/')) ext = '.mp4';
+                  else if (contentType.includes('audio/')) ext = '.mp3';
+                  else if (contentType.includes('image/')) ext = '.jpg';
                 }
                 
                 const fileName = `unsend_${Date.now()}_${i}${ext}`;
                 const filePath = path.join(__dirname, "..", "cache", fileName);
                 
+                // Write file
                 await fs.writeFile(filePath, response.data);
                 
-                // Verify file was created and has content
+                // Verify file and add to attachment list
                 if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
                   attachmentFiles.push(fs.createReadStream(filePath));
                   downloaded = true;
-                  reportMsg += `  ✅ ডাউনলোড সফল (${(response.data.byteLength / 1024).toFixed(1)}KB)\n`;
+                  const sizeKB = (response.data.byteLength / 1024).toFixed(1);
+                  reportMsg += `  ✅ ডাউনলোড সফল (${sizeKB}KB) - ${ext.toUpperCase()}\n`;
+                  
+                  // Set cleanup for this specific file
+                  setTimeout(() => cleanupFile(filePath), 15000);
                 } else {
                   cleanupFile(filePath);
+                  reportMsg += `  ❌ ফাইল সেভ ব্যর্থ\n`;
                 }
+              } else {
+                reportMsg += `  ❌ খালি ফাইল রেসপন্স\n`;
               }
               
             } catch (downloadError) {
-              console.error(`❌ Attachment ${i} download error from ${url}:`, downloadError.message);
-              reportMsg += `  ❌ ডাউনলোড ব্যর্থ: ${downloadError.message.substring(0, 50)}\n`;
+              const errorMsg = downloadError.message || 'Unknown error';
+              console.error(`❌ Attachment ${i} download error from ${url.substring(0, 50)}:`, errorMsg);
+              reportMsg += `  ❌ ডাউনলোড ব্যর্থ: ${errorMsg.substring(0, 30)}\n`;
             }
           }
           
           if (!downloaded) {
-            reportMsg += `  ⚠️ কোনো URL থেকে ডাউনলোড করা যায়নি\n`;
+            reportMsg += `  ⚠️ সব URL থেকে ডাউনলোড ব্যর্থ (${possibleUrls.length} টি চেষ্টা)\n`;
+            
+            // Debug info for failed downloads
+            if (possibleUrls.length > 0) {
+              console.log(`Failed URLs for attachment ${i}:`, possibleUrls.map(u => u.substring(0, 100)));
+            }
           }
         }
         
-        if (savedMsg.attachments.length > 5) {
-          reportMsg += `... এবং আরো ${savedMsg.attachments.length - 5}টি সংযুক্তি\n`;
+        if (savedMsg.attachments.length > 10) {
+          reportMsg += `... এবং আরো ${savedMsg.attachments.length - 10}টি সংযুক্তি\n`;
         }
         reportMsg += `\n`;
       }
 
       reportMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
-      // Prepare message options
+      // Prepare message options - ENHANCED
       const messageOptions = {
-        body: reportMsg
+        body: reportMsg.trim() // Remove any trailing whitespace
       };
 
+      // Only add attachments if we have valid ones
       if (attachmentFiles.length > 0) {
         messageOptions.attachment = attachmentFiles;
+        console.log(`📎 Adding ${attachmentFiles.length} attachments to unsend report`);
       }
 
       // Send report to target thread or same thread
@@ -452,62 +513,83 @@ module.exports = {
           // Update message with source info
           messageOptions.body = reportMsg + `🏠 সোর্স গ্রুপ: ${sourceGroupName}\n🆔 গ্রুপ আইডি: ${savedMsg.threadID}\n`;
           messageOptions.body += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-          messageOptions.body += `⚡ Enhanced Unsend Detector v7.0\n`;
-          messageOptions.body += `🛡️ সব মেসেজ ট্র্যাক করা হচ্ছে!`;
+          messageOptions.body += `⚡ Enhanced Unsend Detector v8.0\n`;
+          messageOptions.body += `🛡️ ছবি ও মিডিয়া সহ সব মেসেজ ট্র্যাক!`;
         } catch (error) {
           console.error("Error getting source thread info:", error);
-          messageOptions.body += `⚡ Enhanced Unsend Detector v7.0\n`;
-          messageOptions.body += `🛡️ সব মেসেজ ট্র্যাক করা হচ্ছে!`;
+          messageOptions.body += `⚡ Enhanced Unsend Detector v8.0\n`;
+          messageOptions.body += `🛡️ ছবি ও মিডিয়া সহ সব মেসেজ ট্র্যাক!`;
         }
       } else {
-        messageOptions.body += `⚡ Enhanced Unsend Detector v7.0\n`;
-        messageOptions.body += `🛡️ সব মেসেজ ট্র্যাক করা হচ্ছে!`;
+        messageOptions.body += `⚡ Enhanced Unsend Detector v8.0\n`;
+        messageOptions.body += `🛡️ ছবি ও মিডিয়া সহ সব মেসেজ ট্র্যাক!`;
+      }
+
+      // Ensure message body is not empty or just whitespace
+      if (!messageOptions.body || messageOptions.body.trim().length === 0) {
+        messageOptions.body = `🚨 Unsend Detected!\n👤 ${savedMsg.senderName || 'Unknown'}\n📝 Content recovery failed`;
       }
       
-      await api.sendMessage(messageOptions, targetThreadID)
-        .then((info) => {
-          console.log(`✅ Unsend report sent: ${event.messageID}`);
-          
-          // Clean up files after sending
-          setTimeout(() => {
-            attachmentFiles.forEach(file => {
-              if (file.path) {
-                cleanupFile(file.path);
-              }
-            });
-          }, 10000);
-        })
-        .catch(async (error) => {
-          console.error("Report send error:", error.message);
-          
-          // Clean up files immediately on error
+      // Send the report
+      try {
+        const info = await api.sendMessage(messageOptions, targetThreadID);
+        console.log(`✅ Unsend report sent successfully: ${event.messageID} with ${attachmentFiles.length} attachments`);
+        
+        // Clean up files after a delay
+        setTimeout(() => {
           attachmentFiles.forEach(file => {
-            if (file.path) {
+            if (file && file.path) {
               cleanupFile(file.path);
             }
           });
-          
-          // Fallback: Send simple text message without attachments
-          try {
-            let fallbackMsg = `🚨 Unsend Detected!\n`;
-            fallbackMsg += `👤 ${savedMsg.senderName} (${savedMsg.senderID})\n`;
-            fallbackMsg += `📝 "${savedMsg.body || 'মিডিয়া মেসেজ'}"\n`;
-            
-            if (savedMsg.attachments && savedMsg.attachments.length > 0) {
-              fallbackMsg += `📎 ${savedMsg.attachments.length}টি সংযুক্তি\n`;
-            }
-            
-            const fallbackTargetID = TARGET_THREAD_ID || savedMsg.threadID;
-            if (TARGET_THREAD_ID && TARGET_THREAD_ID !== savedMsg.threadID) {
-              fallbackMsg += `🏠 Group: ${savedMsg.threadID}`;
-            }
-            
-            await api.sendMessage(fallbackMsg, fallbackTargetID);
-            console.log(`📤 Fallback message sent for: ${event.messageID}`);
-          } catch (fallbackError) {
-            console.error("Fallback message error:", fallbackError.message);
+        }, 20000); // Increased delay
+        
+      } catch (sendError) {
+        console.error("Report send error:", sendError.message);
+        
+        // Clean up files immediately on error
+        attachmentFiles.forEach(file => {
+          if (file && file.path) {
+            cleanupFile(file.path);
           }
         });
+        
+        // Enhanced fallback for different error types
+        try {
+          let fallbackMsg = `🚨 Unsend Alert!\n`;
+          fallbackMsg += `👤 ${savedMsg.senderName || 'Unknown User'}\n`;
+          fallbackMsg += `🆔 ${savedMsg.senderID || 'Unknown'}\n`;
+          fallbackMsg += `📝 "${String(savedMsg.body || 'মিডিয়া কন্টেন্ট').substring(0, 100)}"\n`;
+          
+          if (savedMsg.attachments && savedMsg.attachments.length > 0) {
+            fallbackMsg += `📎 ${savedMsg.attachments.length}টি সংযুক্তি (ডাউনলোড ব্যর্থ)\n`;
+            // Add attachment types info
+            const types = savedMsg.attachments.map(att => getAttachmentType(att)).join(', ');
+            fallbackMsg += `📋 প্রকার: ${types}\n`;
+          }
+          
+          const fallbackTargetID = TARGET_THREAD_ID || savedMsg.threadID;
+          if (TARGET_THREAD_ID && TARGET_THREAD_ID !== savedMsg.threadID) {
+            fallbackMsg += `🏠 From Group: ${savedMsg.threadID}`;
+          }
+          
+          await api.sendMessage(fallbackMsg, fallbackTargetID);
+          console.log(`📤 Fallback message sent for: ${event.messageID}`);
+          
+        } catch (fallbackError) {
+          console.error("Fallback message error:", fallbackError.message);
+          
+          // Last resort: very simple message
+          try {
+            const simpleMsg = `🚨 Unsend: ${savedMsg.senderName || 'User'} - ${savedMsg.attachments?.length || 0} files`;
+            const lastTargetID = TARGET_THREAD_ID || savedMsg.threadID;
+            await api.sendMessage(simpleMsg, lastTargetID);
+            console.log(`📤 Simple fallback sent for: ${event.messageID}`);
+          } catch (simpleError) {
+            console.error("Simple fallback failed:", simpleError.message);
+          }
+        }
+      }
 
       // Remove from store
       delete store[event.messageID];
