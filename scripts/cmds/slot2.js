@@ -79,7 +79,7 @@ module.exports = {
     }
 
     return message.reply(
-      messageText + `\n💰 Balance: ${userData.money}\n🎮 Slot games played: ${currentCount}/20`ino games played: ${userData.gameData.count}/${limit}`
+      messageText + `\n💰 Balance: ${userData.money}\n🎮 Slot games played: ${currentCount}/20`
     );
   },
 };

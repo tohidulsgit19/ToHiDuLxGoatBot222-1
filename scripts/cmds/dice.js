@@ -47,19 +47,8 @@ module.exports = {
     }
 
     // Increment game count
-    const currentCount = gameCount.incrementGameCount(senderID, "dice");t: now };
-    }
-
-    if (now - userData.gameData.lastReset > resetTime) {
-      userData.gameData = { count: 0, lastReset: now };
-    }
-
-    if (userData.gameData.count >= limit) {
-      const remaining = ((resetTime - (now - userData.gameData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
-      return api.sendMessage(`⚠️ আপনি আজকে ${limit} বার dice খেলেছেন। আবার খেলতে পারবেন ${remaining} ঘন্টা পরে।`, threadID);
-    }
-
-    userData.gameData.count++;
+    const currentCount = gameCount.incrementGameCount(senderID, "dice");
+    // ==========================================
 
     const diceRoll = Math.floor(Math.random() * 6) + 1;
     let resultMessage = `🎲 Dice rolled: ${diceRoll}\n`;
@@ -84,7 +73,7 @@ module.exports = {
     userData.money = userData.money - betAmount + winAmount;
     await usersData.set(senderID, userData);
 
-    resultMessage += `\n💵 Balance: ${formatMoney(userData.money)}\n🎮 Casino games played: ${userData.gameData.count}/${limit}`;
+    resultMessage += `\n💵 Balance: ${formatMoney(userData.money)}\n🎮 Dice games played: ${currentCount}/20`;
 
     return api.sendMessage(resultMessage, threadID);
   }

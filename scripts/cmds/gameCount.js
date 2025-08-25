@@ -2,6 +2,9 @@
 const fs = require("fs-extra");
 const path = require("path");
 
+// This is a utility module, not a command
+// It doesn't need config object
+
 const gameCountPath = path.join(__dirname, "../cache/gameCount.json");
 
 // Ensure the gameCount.json file exists

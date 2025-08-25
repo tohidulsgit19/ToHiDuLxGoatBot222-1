@@ -1,22 +1,35 @@
-// ===== UNIVERSAL GAME LIMIT SYSTEM =====
-    const now = Date.now();
-    const limit = 20;
-    const resetTime = 12 * 60 * 60 * 1000; // 12h
 
-    if (!userData.gameData) {
-      userData.gameData = { count: 0, lastReset: now };
+const gameCount = require("./gameCount");
+
+module.exports = {
+  config: {
+    name: "roulette",
+    version: "1.0",
+    author: "tohidul",
+    countDown: 5,
+    role: 0,
+    description: "🎰 Roulette game",
+    category: "game",
+    guide: { en: "Use: {pn} <bet> <color>\nColors: red, black, green" }
+  },
+
+  onStart: async function ({ message, event, args, usersData }) {
+    const { senderID } = event;
+    const userData = await usersData.get(senderID);
+
+    if (!userData || userData.money === undefined) {
+      return message.reply("❌ Account issue! Please try again later.");
     }
 
-    if (now - userData.gameData.lastReset > resetTime) {
-      userData.gameData = { count: 0, lastReset: now };
+    // ===== GAME LIMIT SYSTEM USING gameCount.js =====
+    const gameCheck = gameCount.canPlayGame(senderID, "roulette");
+    
+    if (!gameCheck.canPlay) {
+      return message.reply(`⚠️ You already played ${gameCheck.limit} roulette games in last 12h. Try again after ${gameCheck.remaining} hours.`);
     }
 
-    if (userData.gameData.count >= limit) {
-      const remaining = ((resetTime - (now - userData.gameData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
-      return message.reply(`⚠️ You already played ${limit} casino games in last 12h. Try again after ${remaining} hours.`);
-    }
-
-    userData.gameData.count++;
+    // Increment game count
+    const currentCount = gameCount.incrementGameCount(senderID, "roulette");
 
     // ===== Roulette game logic =====
     const bet = parseInt(args[0]);
@@ -30,11 +43,11 @@
       return message.reply("Please choose a color: red, black, or green.");
     }
 
-    if (userData.coins < bet) {
-      return message.reply("You don't have enough coins to place this bet.");
+    if (userData.money < bet) {
+      return message.reply("You don't have enough money to place this bet.");
     }
 
-    userData.coins -= bet;
+    userData.money -= bet;
 
     const winningColor = ["red", "black", "green"][Math.floor(Math.random() * 3)];
     let winnings = 0;
@@ -45,8 +58,12 @@
       } else {
         winnings = bet * 2;
       }
-      userData.coins += winnings;
-      message.reply(`The winning color is **${winningColor.toUpperCase()}**! You won **${winnings}** coins. 🥳\n\n🎮 Casino games played: ${userData.gameData.count}/${limit}`);
+      userData.money += winnings;
+      await usersData.set(senderID, userData);
+      message.reply(`The winning color is **${winningColor.toUpperCase()}**! You won **${winnings}** coins. 🥳\n\n🎮 Roulette games played: ${currentCount}/20`);
     } else {
-      message.reply(`The winning color is **${winningColor.toUpperCase()}**! You lost **${bet}** coins. 😥\n\n🎮 Casino games played: ${userData.gameData.count}/${limit}`);
+      await usersData.set(senderID, userData);
+      message.reply(`The winning color is **${winningColor.toUpperCase()}**! You lost **${bet}** coins. 😥\n\n🎮 Roulette games played: ${currentCount}/20`);
     }
+  }
+};
