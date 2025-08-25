@@ -36,19 +36,19 @@
     "autoRefreshThreadInfoFirstTime": true,
     "notes": "(1) type selects 'json' or 'sqlite' or 'mongodb'. If you choose mongodb, enter uri connect mongodb in the uriMongodb section, instructions to get uri connect mongodb at: https://youtu.be/z1f9urHW5xY. I recommend using 'mongodb' or 'sqlite', json is not recommended because it is not stable. (2) when you set autoSyncWhenStart to true, the bot will automatically synchronize the data in the database when starting the bot, this will make the bot start slower. (3) when you set autoRefreshThreadInfoFirstTime to true, the bot will automatically refresh the thread information when get first message from the thread since starting the bot"
   },
- "timeZone": "Asia/Dhaka",
-		"credentials": {
-			"gmailAccount": {
-				"email": "botpack12@gmail.com",
-				"clientId": "209455356459-cngja0c1a5ou3p16l3jrvmbvc7e855os.apps.googleusercontent.com",
-				"clientSecret": "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",
-				"refreshToken": "1//04yrStvlcXay-CgYIARAAGAQSNwF-L9IrjqC-i0wmpJJ52YFpPfNTthsVInUW0soRFVrfw4rFaYA2CadSeFyTqIVAzpq9SzfsD7Y",
-				"apiKey": ""
-			},
-			"gRecaptcha": {
-				"siteKey": "6Ld-xo4rAAAAAJpqCqnSBnOuYJ5BNts0hkRUFOUn",
-				"secretKey": "6Ld-xo4rAAAAADW1asM_tEymF0FuqWePE22t-px_"
-			}
+  "timeZone": "Asia/Dhaka",
+  "credentials": {
+    "gmailAccount": {
+      "email": "botpack12@gmail.com",
+      "clientId": "209455356459-cngja0c1a5ou3p16l3jrvmbvc7e855os.apps.googleusercontent.com",
+      "clientSecret": "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",
+      "refreshToken": "1//04yrStvlcXay-CgYIARAAGAQSNwF-L9IrjqC-i0wmpJJ52YFpPfNTthsVInUW0soRFVrfw4rFaYA2CadSeFyTqIVAzpq9SzfsD7Y",
+      "apiKey": ""
+    },
+    "gRecaptcha": {
+      "siteKey": "6Ld-xo4rAAAAAJpqCqnSBnOuYJ5BNts0hkRUFOUn",
+      "secretKey": "6Ld-xo4rAAAAADW1asM_tEymF0FuqWePE22t-px_"
+    }
   },
   "dashBoard": {
     "enable": true,
