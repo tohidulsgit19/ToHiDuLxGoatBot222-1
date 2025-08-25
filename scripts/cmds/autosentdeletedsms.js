@@ -209,18 +209,41 @@ module.exports = {
       senderName = `User ${event.senderID}`;
     }
 
+    // Process attachments more carefully
+    let processedAttachments = [];
+    if (event.attachments && event.attachments.length > 0) {
+      processedAttachments = event.attachments.map(att => ({
+        type: att.type || 'unknown',
+        url: att.url || att.previewUrl || att.largePreview || att.thumbnailUrl,
+        filename: att.filename || `attachment_${Date.now()}`,
+        ID: att.ID || null,
+        width: att.width || null,
+        height: att.height || null
+      }));
+    }
+
     // Store message data
     store[event.messageID] = {
       senderID: event.senderID,
       senderName: senderName,
       threadID: event.threadID,
       body: event.body || "",
-      attachments: event.attachments || [],
+      attachments: processedAttachments,
       mentions: event.mentions || {},
       timestamp: Date.now(),
       messageReply: event.messageReply || null,
-      isGroup: event.isGroup || false
+      isGroup: event.isGroup || false,
+      originalEvent: {
+        type: event.type,
+        logMessageType: event.logMessageType,
+        logMessageData: event.logMessageData
+      }
     };
+    
+    // Debug log for photo messages
+    if (processedAttachments.length > 0 && processedAttachments.some(att => att.type === 'photo')) {
+      console.log(`📸 Photo message stored: ${event.messageID} from ${senderName}`);
+    }
     
     saveStore(store);
   },
