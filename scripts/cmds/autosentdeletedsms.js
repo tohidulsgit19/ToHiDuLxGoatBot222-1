@@ -4,13 +4,47 @@ const axios = require("axios");
 const path = require("path");
 
 const CACHE_FILE = path.join(__dirname, "..", "cache", "unsentMessages.json");
+const CONFIG_FILE = path.join(__dirname, "..", "cache", "unsentConfig.json");
 const DELETE_AFTER = 30 * 60 * 1000; // 30 minutes
+
+// Target thread ID - add your group thread ID here
+let TARGET_THREAD_ID = null;
 
 // Ensure cache file exists
 function ensureCacheFile() {
   const folder = path.dirname(CACHE_FILE);
   if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
   if (!fs.existsSync(CACHE_FILE)) fs.writeFileSync(CACHE_FILE, "{}");
+}
+
+// Config file functions
+function ensureConfigFile() {
+  const folder = path.dirname(CONFIG_FILE);
+  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+  if (!fs.existsSync(CONFIG_FILE)) {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ targetThreadID: null }, null, 2));
+  }
+}
+
+function loadConfig() {
+  ensureConfigFile();
+  try {
+    const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    TARGET_THREAD_ID = config.targetThreadID;
+    return config;
+  } catch (error) {
+    console.error("Error loading config:", error);
+    return { targetThreadID: null };
+  }
+}
+
+function saveConfig(config) {
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    TARGET_THREAD_ID = config.targetThreadID;
+  } catch (error) {
+    console.error("Error saving config:", error);
+  }
 }
 
 function loadStore() {
@@ -72,20 +106,66 @@ async function getUserInfo(api, userID) {
 module.exports = {
   config: {
     name: "autosentdeletedsms",
-    version: "5.0",
+    version: "6.0",
     author: "Tohidul (Enhanced Version)",
     shortDescription: "Auto detect unsent messages",
     longDescription: "Automatically detects and logs unsent messages with attachments in Bengali",
     category: "utility",
     guide: {
-      en: "This command automatically tracks all unsent messages and logs them.",
+      en: "This command automatically tracks all unsent messages and logs them.\n\nCommands:\n- setgc <threadID> - Set target group for unsend reports\n- checkgc - Check current target group\n- removegc - Remove target group (send to original thread)",
       vi: "Tự động theo dõi và ghi lại các tin nhắn bị thu hồi."
     }
   },
 
   // Initialize system when bot starts
-  onStart: async function ({ api }) {
+  onStart: async function ({ api, args, message, event }) {
+    // Handle commands
+    if (args[0]) {
+      const command = args[0].toLowerCase();
+      
+      if (command === "setgc") {
+        const threadID = args[1];
+        if (!threadID || !/^\d+$/.test(threadID)) {
+          return message.reply("❌ সঠিক Thread ID দিন!\nউদাহরণ: setgc 123456789");
+        }
+        
+        try {
+          // Check if thread exists and bot has access
+          await api.getThreadInfo(threadID);
+          const config = { targetThreadID: threadID };
+          saveConfig(config);
+          
+          return message.reply(`✅ সফলভাবে টার্গেট গ্রুপ সেট করা হয়েছে!\n🆔 Thread ID: ${threadID}\n\nএখন সব unsend রিপোর্ট এই গ্রুপে পাঠানো হবে।`);
+        } catch (error) {
+          return message.reply("❌ অবৈধ Thread ID বা বট এই গ্রুপে নেই!");
+        }
+      }
+      
+      if (command === "checkgc") {
+        const config = loadConfig();
+        if (!config.targetThreadID) {
+          return message.reply("❌ কোনো টার্গেট গ্রুপ সেট করা হয়নি।\n\nসেট করতে: setgc <threadID>");
+        }
+        
+        try {
+          const threadInfo = await api.getThreadInfo(config.targetThreadID);
+          return message.reply(`📋 বর্তমান টার্গেট গ্রুপ:\n🆔 ID: ${config.targetThreadID}\n📝 নাম: ${threadInfo.threadName || 'নাম নেই'}\n👥 সদস্য: ${threadInfo.participantIDs.length} জন`);
+        } catch (error) {
+          return message.reply(`⚠️ টার্গেট গ্রুপ: ${config.targetThreadID}\n❌ গ্রুপ অ্যাক্সেস করা যাচ্ছে না!`);
+        }
+      }
+      
+      if (command === "removegc") {
+        const config = { targetThreadID: null };
+        saveConfig(config);
+        return message.reply("✅ টার্গেট গ্রুপ রিমুভ করা হয়েছে!\nএখন unsend রিপোর্ট মূল গ্রুপেই পাঠানো হবে।");
+      }
+      
+      return message.reply("❌ অজানা কমান্ড!\n\nব্যবহার:\n- setgc <threadID>\n- checkgc\n- removegc");
+    }
+    
     ensureCacheFile();
+    loadConfig(); // Load target thread ID
     
     // Clean old messages every 60 seconds
     setInterval(() => {
@@ -107,6 +187,9 @@ module.exports = {
     }, 60000);
 
     console.log("✅ Enhanced Auto Unsend Detector সিস্টেম চালু হয়েছে!");
+    if (TARGET_THREAD_ID) {
+      console.log(`📍 Target Group: ${TARGET_THREAD_ID}`);
+    }
   },
 
   // Store all messages
@@ -247,8 +330,26 @@ module.exports = {
         messageOptions.attachment = attachmentFiles;
       }
 
-      // Send report to same thread
-      await api.sendMessage(messageOptions, savedMsg.threadID)
+      // Send report to target thread or same thread
+      const targetThreadID = TARGET_THREAD_ID || savedMsg.threadID;
+      
+      // Add source group info if sending to different thread
+      if (TARGET_THREAD_ID && TARGET_THREAD_ID !== savedMsg.threadID) {
+        try {
+          const sourceThreadInfo = await api.getThreadInfo(savedMsg.threadID);
+          const sourceGroupName = sourceThreadInfo.threadName || `Group ${savedMsg.threadID}`;
+          reportMsg += `\n🏠 সোর্স গ্রুপ: ${sourceGroupName}\n🆔 গ্রুপ আইডি: ${savedMsg.threadID}\n`;
+          reportMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+          reportMsg += `⚡ Enhanced Unsend Detector v6.0\n`;
+          reportMsg += `🛡️ সব মেসেজ ট্র্যাক করা হচ্ছে!`;
+          
+          messageOptions.body = reportMsg;
+        } catch (error) {
+          console.error("Error getting source thread info:", error);
+        }
+      }
+      
+      await api.sendMessage(messageOptions, targetThreadID)
         .then((info) => {
           console.log(`✅ Unsend report sent: ${event.messageID}`);
           
@@ -269,8 +370,14 @@ module.exports = {
           console.error("Report send error:", error.message);
           
           // Fallback: Send simple text message
-          const fallbackMsg = `🚨 Unsend Detected!\n👤 ${savedMsg.senderName} (${savedMsg.senderID})\n📝 "${savedMsg.body || 'মিডিয়া মেসেজ'}"`;
-          api.sendMessage(fallbackMsg, savedMsg.threadID);
+          let fallbackMsg = `🚨 Unsend Detected!\n👤 ${savedMsg.senderName} (${savedMsg.senderID})\n📝 "${savedMsg.body || 'মিডিয়া মেসেজ'}"`;
+          
+          const fallbackTargetID = TARGET_THREAD_ID || savedMsg.threadID;
+          if (TARGET_THREAD_ID && TARGET_THREAD_ID !== savedMsg.threadID) {
+            fallbackMsg += `\n🏠 Group: ${savedMsg.threadID}`;
+          }
+          
+          api.sendMessage(fallbackMsg, fallbackTargetID);
         });
 
       // Remove from store
@@ -282,8 +389,14 @@ module.exports = {
       
       // Emergency fallback
       try {
-        const emergencyMsg = `🚨 Unsend Alert!\n👤 ${savedMsg.senderName || 'Unknown'}\n📝 "${savedMsg.body || 'Content not available'}"`;
-        await api.sendMessage(emergencyMsg, savedMsg.threadID);
+        let emergencyMsg = `🚨 Unsend Alert!\n👤 ${savedMsg.senderName || 'Unknown'}\n📝 "${savedMsg.body || 'Content not available'}"`;
+        
+        const emergencyTargetID = TARGET_THREAD_ID || savedMsg.threadID;
+        if (TARGET_THREAD_ID && TARGET_THREAD_ID !== savedMsg.threadID) {
+          emergencyMsg += `\n🏠 Group: ${savedMsg.threadID}`;
+        }
+        
+        await api.sendMessage(emergencyMsg, emergencyTargetID);
         
         // Clean up store
         delete store[event.messageID];
