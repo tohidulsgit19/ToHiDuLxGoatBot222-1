@@ -25,9 +25,9 @@
       }
     ],
     "mentions": {},
-    "time": 1756131429545,
+    "timestamp": 1756131429518,
     "messageReply": null,
-    "type": "message"
+    "isGroup": true
   },
   "mid.$gAHBfFsT11SGfEtzbJWY4ZeSLUofo": {
     "senderID": "100010956458694",
@@ -36,9 +36,9 @@
     "body": "/wheel 90000000",
     "attachments": [],
     "mentions": {},
-    "time": 1756131464805,
+    "timestamp": 1756131464831,
     "messageReply": null,
-    "type": "message"
+    "isGroup": true
   },
   "mid.$gAHBfFsT11SGfEtzet2Y4ZeU7Ff2P": {
     "senderID": "100090160568733",
@@ -47,9 +47,9 @@
     "body": "🌀 Starting the wheel...",
     "attachments": [],
     "mentions": {},
-    "time": 1756131465632,
+    "timestamp": 1756131465693,
     "messageReply": null,
-    "type": "message"
+    "isGroup": true
   },
   "mid.$gAHBfFsT11SGfEtznPWY4Zed2v_nU": {
     "senderID": "100090160568733",
@@ -58,9 +58,9 @@
     "body": "🎡 WHEEL STOPPED ON: 🍋\n\n➖ BROKE EVEN\n💰 NEW BALANCE: 19390.82B",
     "attachments": [],
     "mentions": {},
-    "time": 1756131467963,
+    "timestamp": 1756131467964,
     "messageReply": null,
-    "type": "message"
+    "isGroup": true
   },
   "mid.$gAHBfFsT11SGfEt07DmY4ZfyQx5eo": {
     "senderID": "100010956458694",
@@ -69,9 +69,9 @@
     "body": "/wheel 9000000",
     "attachments": [],
     "mentions": {},
-    "time": 1756131489411,
+    "timestamp": 1756131489419,
     "messageReply": null,
-    "type": "message"
+    "isGroup": true
   },
   "mid.$gAHBfFsT11SGfEt0-h2Y4Zf042daY": {
     "senderID": "100090160568733",
@@ -80,8 +80,8 @@
     "body": "🌀 Starting the wheel...",
     "attachments": [],
     "mentions": {},
-    "time": 1756131490224,
+    "timestamp": 1756131490317,
     "messageReply": null,
-    "type": "message"
+    "isGroup": true
   }
 }
