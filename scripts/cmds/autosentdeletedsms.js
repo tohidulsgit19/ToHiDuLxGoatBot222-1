@@ -4,7 +4,7 @@ const axios = require("axios");
 const path = require("path");
 
 const CACHE_FILE = path.join(__dirname, "..", "cache", "unsentMessages.json");
-const DELETE_AFTER = 10 * 60 * 1000; // 10 minutes
+const DELETE_AFTER = 30 * 60 * 1000; // 30 minutes
 
 // Cache file ensure করা
 function ensureCacheFile() {
@@ -59,43 +59,27 @@ function getAttachmentType(attachment) {
   }
 }
 
-// Thread info get করা
-async function getThreadInfo(api, threadID) {
-  try {
-    const threadInfo = await api.getThreadInfo(threadID);
-    return {
-      name: threadInfo.threadName || `গ্রুপ ${threadID}`,
-      type: threadInfo.isGroup ? "👥 গ্রুপ" : "🔒 ব্যক্তিগত"
-    };
-  } catch (error) {
-    return {
-      name: "অজানা থ্রেড",
-      type: "❓ অজানা"
-    };
-  }
-}
-
 // User info get করা
 async function getUserInfo(api, userID) {
   try {
     const userInfo = await api.getUserInfo(userID);
-    return userInfo[userID]?.name || "অজানা ব্যবহারকারী";
+    return userInfo[userID]?.name || `User ${userID}`;
   } catch (error) {
-    return "অজানা ব্যবহারকারী";
+    return `User ${userID}`;
   }
 }
 
 module.exports = {
   config: {
     name: "autosentdeletedsms",
-    version: "3.0",
-    author: "Tohidul (Advanced Version)",
-    shortDescription: "Advanced unsend message detector",
-    longDescription: "Advanced unsend message detector with better features",
+    version: "4.0",
+    author: "Tohidul (Fixed Version)",
+    shortDescription: "Fixed unsend message detector",
+    longDescription: "Automatically detects and logs unsent messages with attachments",
     category: "utility",
     guide: {
-      en: "This command automatically tracks all unsent messages and logs them.",
-      vi: "Tự động theo dõi và ghi lại các tin nhắn bị thu hồi."
+      en: "This command automatically tracks all unsent messages and logs them in the same thread.",
+      vi: "Tự động theo dõi và ghi lại các tin nhắn bị thu hồi trong cùng thread."
     }
   },
 
@@ -103,7 +87,7 @@ module.exports = {
   onStart: async function ({ api }) {
     ensureCacheFile();
     
-    // Old messages clean করা (প্রতি 30 সেকেন্ডে)
+    // Old messages clean করা (প্রতি 60 সেকেন্ডে)
     setInterval(() => {
       const store = loadStore();
       let changed = false;
@@ -118,9 +102,9 @@ module.exports = {
       
       if (changed) {
         saveStore(store);
-        console.log(`🧹 পুরানো ${Object.keys(store).length}টি unsend রেকর্ড পরিষ্কার করা হয়েছে`);
+        console.log(`🧹 পুরানো unsend রেকর্ড পরিষ্কার করা হয়েছে`);
       }
-    }, 30000);
+    }, 60000);
 
     console.log("✅ Auto Unsend Detector সিস্টেম চালু হয়েছে!");
   },
@@ -132,11 +116,11 @@ module.exports = {
     const store = loadStore();
     
     // User info get করা
-    let senderName = "অজানা ব্যবহারকারী";
+    let senderName = "Unknown User";
     try {
       senderName = await getUserInfo(api, event.senderID);
     } catch (error) {
-      // Ignore error
+      console.log("Error getting user info:", error.message);
     }
 
     // Message data store করা
@@ -144,7 +128,7 @@ module.exports = {
       senderID: event.senderID,
       senderName: senderName,
       threadID: event.threadID,
-      body: event.body || null,
+      body: event.body || "",
       attachments: event.attachments || [],
       mentions: event.mentions || {},
       timestamp: Date.now(),
@@ -155,36 +139,42 @@ module.exports = {
     saveStore(store);
   },
 
-  // Unsend detect করা - এখানেই main fix
+  // Unsend detect করা - Main handler
   handleEvent: async function ({ api, event }) {
+    // শুধুমাত্র message_unsend event handle করা
     if (event.type !== "message_unsend") return;
+
+    console.log(`🚨 Unsend detected: ${event.messageID}`);
 
     const store = loadStore();
     const savedMsg = store[event.messageID];
     
     // Message check করা
-    if (!savedMsg || Date.now() - savedMsg.timestamp > DELETE_AFTER) {
-      console.log(`⚠️ Unsend ডিটেক্ট হয়েছে কিন্তু মেসেজ পাওয়া যায়নি: ${event.messageID}`);
+    if (!savedMsg) {
+      console.log(`⚠️ No saved message found for: ${event.messageID}`);
+      return;
+    }
+
+    // Time check করা
+    if (Date.now() - savedMsg.timestamp > DELETE_AFTER) {
+      console.log(`⚠️ Message too old: ${event.messageID}`);
+      delete store[event.messageID];
+      saveStore(store);
       return;
     }
 
     try {
-      // Thread info get করা
-      const threadInfo = await getThreadInfo(api, savedMsg.threadID);
-
       // Report message তৈরি করা
-      let reportMsg = `🚨 𝗨𝗻𝘀𝗲𝗻𝗱 𝗗𝗲𝘁𝗲𝗰𝘁𝗲𝗱 🚨
-━━━━━━━━━━━━━━━━━━━━━━━━
-👤 প্রেরক: ${savedMsg.senderName}
-🆔 ইউজার আইডি: ${savedMsg.senderID}
-${threadInfo.type}: ${threadInfo.name}
-📍 থ্রেড আইডি: ${savedMsg.threadID}
-🕒 সময়: ${formatTime(new Date())}
-📨 মেসেজ আইডি: ${event.messageID}
-━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      let reportMsg = `🚨 𝗨𝗻𝘀𝗲𝗻𝗱 𝗗𝗲𝘁𝗲𝗰𝘁𝗲𝗱 🚨\n`;
+      reportMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      reportMsg += `👤 প্রেরক: ${savedMsg.senderName}\n`;
+      reportMsg += `🆔 ইউজার আইডি: ${savedMsg.senderID}\n`;
+      reportMsg += `🕒 সময়: ${formatTime(new Date())}\n`;
+      reportMsg += `📨 মেসেজ আইডি: ${event.messageID}\n`;
+      reportMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
       // Message content add করা
-      if (savedMsg.body) {
+      if (savedMsg.body && savedMsg.body.trim()) {
         reportMsg += `📝 মেসেজ:\n"${savedMsg.body}"\n\n`;
       }
 
@@ -198,16 +188,16 @@ ${threadInfo.type}: ${threadInfo.name}
       }
 
       // Reply info add করা  
-      if (savedMsg.messageReply) {
-        reportMsg += `↩️ রিপ্লাই করা মেসেজ: "${savedMsg.messageReply.body || 'Media/Attachment'}"\n\n`;
+      if (savedMsg.messageReply && savedMsg.messageReply.body) {
+        reportMsg += `↩️ রিপ্লাই করা মেসেজ: "${savedMsg.messageReply.body}"\n\n`;
       }
 
       // Attachments handle করা
-      const files = [];
+      const attachmentFiles = [];
       if (savedMsg.attachments && savedMsg.attachments.length > 0) {
-        reportMsg += `📎 সংযুক্তি: ${savedMsg.attachments.length}টি ফাইল\n`;
+        reportMsg += `📎 সংযুক্তি: ${savedMsg.attachments.length}টি\n`;
         
-        for (let i = 0; i < Math.min(savedMsg.attachments.length, 10); i++) { // Max 10 attachments
+        for (let i = 0; i < Math.min(savedMsg.attachments.length, 5); i++) {
           const att = savedMsg.attachments[i];
           const attType = getAttachmentType(att);
           reportMsg += `${i + 1}. ${attType}\n`;
@@ -217,56 +207,56 @@ ${threadInfo.type}: ${threadInfo.name}
             try {
               const response = await axios.get(url, { 
                 responseType: "arraybuffer",
-                timeout: 30000, // 30 seconds timeout
-                maxContentLength: 100 * 1024 * 1024, // 100MB limit
+                timeout: 15000,
+                maxContentLength: 50 * 1024 * 1024, // 50MB limit
                 headers: {
                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
               });
               
-              const ext = path.extname(url).toLowerCase() || (att.type === 'photo' ? '.jpg' : '.dat');
+              const ext = path.extname(url).toLowerCase() || '.jpg';
               const fileName = `unsend_${Date.now()}_${i}${ext}`;
-              const filePath = path.join(__dirname, "..", "cache", fileName);
+              const filePath = path.join(__dirname, "cache", fileName);
               
               await fs.writeFile(filePath, response.data);
-              files.push(fs.createReadStream(filePath));
+              attachmentFiles.push(fs.createReadStream(filePath));
               
             } catch (downloadError) {
               console.error(`Attachment ${i} download error:`, downloadError.message);
-              reportMsg += `  ❌ ডাউনলোড ব্যর্থ: ${downloadError.message}\n`;
+              reportMsg += `  ❌ ডাউনলোড ব্যর্থ\n`;
             }
           }
         }
         reportMsg += `\n`;
       }
 
-      reportMsg += `━━━━━━━━━━━━━━━━━━━━━━━━
-⚡ Advanced Unsend Detector
-🛡️ কোনো মেসেজই লুকিয়ে থাকতে পারবে না!
-🔍 Total Saved Messages: ${Object.keys(store).length}`;
+      reportMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      reportMsg += `⚡ Fixed Unsend Detector\n`;
+      reportMsg += `🛡️ সব মেসেজ ট্র্যাক করা হচ্ছে!`;
 
-      // Report send করা - সেই থ্রেডেই পাঠানো হবে যেখানে unsend হয়েছে
+      // Message options prepare করা
       const messageOptions = {
         body: reportMsg
       };
 
-      if (files.length > 0) {
-        messageOptions.attachment = files;
+      if (attachmentFiles.length > 0) {
+        messageOptions.attachment = attachmentFiles;
       }
 
-      // Same thread এ পাঠানো - এটাই main fix
+      // Same thread এ report পাঠানো
       api.sendMessage(messageOptions, savedMsg.threadID, (error, info) => {
         if (error) {
-          console.error("Unsend report পাঠাতে ত্রুটি:", error.message);
+          console.error("Report পাঠাতে ত্রুটি:", error.message);
           
-          // Fallback: কোনো error হলে text-only message পাঠানো
-          api.sendMessage(`🚨 Unsend Detected 🚨\n👤 User: ${savedMsg.senderName}\n🆔 ID: ${savedMsg.senderID}\n📝 Message: "${savedMsg.body || 'Media message'}"\n⚠️ Attachment processing failed`, savedMsg.threadID);
+          // Fallback: Simple text message
+          const fallbackMsg = `🚨 Unsend Detected!\n👤 ${savedMsg.senderName} (${savedMsg.senderID})\n📝 "${savedMsg.body || 'Media message'}"`;
+          api.sendMessage(fallbackMsg, savedMsg.threadID);
         } else {
           console.log(`✅ Unsend report পাঠানো হয়েছে: ${event.messageID}`);
         }
         
         // Files cleanup করা
-        files.forEach(file => {
+        attachmentFiles.forEach(file => {
           try {
             if (file.path && fs.existsSync(file.path)) {
               fs.unlinkSync(file.path);
@@ -282,13 +272,19 @@ ${threadInfo.type}: ${threadInfo.name}
       saveStore(store);
 
     } catch (error) {
-      console.error("HandleEvent এ ত্রুটি:", error);
+      console.error("HandleEvent এ ত্রুটি:", error.message);
       
-      // Fallback message - same thread এ
+      // Emergency fallback message
       try {
-        await api.sendMessage(`🚨 Unsend Detected 🚨\n👤 User: ${savedMsg.senderName}\n🆔 ID: ${savedMsg.senderID}\n📝 Message: "${savedMsg.body || 'No text'}"\n⚠️ Processing error occurred`, savedMsg.threadID);
+        const fallbackMsg = `🚨 Unsend Alert!\n👤 ${savedMsg.senderName || 'Unknown'}\n📝 "${savedMsg.body || 'Content not available'}"`;
+        api.sendMessage(fallbackMsg, savedMsg.threadID);
+        
+        // Clean up store
+        delete store[event.messageID];
+        saveStore(store);
+        
       } catch (fallbackError) {
-        console.error("Fallback message error:", fallbackError);
+        console.error("Fallback message error:", fallbackError.message);
       }
     }
   }
