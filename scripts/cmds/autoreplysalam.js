@@ -10,6 +10,10 @@ module.exports = {
     category: "auto",
   },
 
+  onStart: async function ({ message }) {
+    message.reply("Auto-reply to Salam is active. When someone says 'Salam' or 'Assalamualaikum', I will reply with 'Waalaikumussalam 🤲'");
+  },
+
  onChat: async function ({ event, api }) {
     if (!event.body) return;
     const msg = event.body.toLowerCase();
