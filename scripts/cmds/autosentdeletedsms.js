@@ -51,7 +51,8 @@ function saveConfig(config) {
 function loadStore() {
   ensureCacheFile();
   try {
-    return JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+    const data = fs.readFileSync(CACHE_FILE, 'utf8');
+    return JSON.parse(data) || {};
   } catch (error) {
     console.error("Error loading unsent store:", error);
     return {};
@@ -68,29 +69,45 @@ function saveStore(data) {
 
 // Bengali time format
 function formatTime(date) {
-  const options = {
-    year: 'numeric',
-    month: '2-digit', 
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: 'Asia/Dhaka'
-  };
-  return new Intl.DateTimeFormat('bn-BD', options).format(date);
+  try {
+    const options = {
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'Asia/Dhaka'
+    };
+    return new Intl.DateTimeFormat('bn-BD', options).format(date);
+  } catch (error) {
+    return new Date(date).toLocaleString();
+  }
 }
 
 // Get attachment type in Bengali
 function getAttachmentType(attachment) {
-  const type = attachment.type || 'unknown';
+  if (!attachment || !attachment.type) return '📎 সংযুক্তি';
+  
+  const type = attachment.type.toLowerCase();
   switch (type) {
-    case 'photo': return '📸 ছবি';
-    case 'video': return '🎥 ভিডিও';  
-    case 'audio': return '🎵 অডিও';
-    case 'file': return '📄 ফাইল';
-    case 'sticker': return '😀 স্টিকার';
-    case 'animated_image': return '🎭 GIF';
-    default: return '📎 সংযুক্তি';
+    case 'photo': 
+    case 'image': 
+      return '📸 ছবি';
+    case 'video': 
+      return '🎥 ভিডিও';  
+    case 'audio': 
+    case 'voice': 
+      return '🎵 অডিও';
+    case 'file': 
+      return '📄 ফাইল';
+    case 'sticker': 
+      return '😀 স্টিকার';
+    case 'animated_image': 
+    case 'gif': 
+      return '🎭 GIF';
+    default: 
+      return '📎 সংযুক্তি';
   }
 }
 
@@ -98,16 +115,27 @@ function getAttachmentType(attachment) {
 async function getUserInfo(api, userID) {
   try {
     const userInfo = await api.getUserInfo(userID);
-    return userInfo[userID]?.name || `User ${userID}`;
+    return userInfo && userInfo[userID] ? userInfo[userID].name : `User ${userID}`;
   } catch (error) {
     return `User ${userID}`;
+  }
+}
+
+// Safe cleanup function
+function cleanupFile(filePath) {
+  try {
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (error) {
+    console.error("File cleanup error:", error.message);
   }
 }
 
 module.exports = {
   config: {
     name: "autosentdeletedsms",
-    version: "6.0",
+    version: "7.0",
     author: "Tohidul (Enhanced Version)",
     shortDescription: "Auto detect unsent messages",
     longDescription: "Automatically detects and logs unsent messages with attachments in Bengali",
@@ -205,44 +233,49 @@ module.exports = {
     try {
       senderName = await getUserInfo(api, event.senderID);
     } catch (error) {
-      // Fallback to userID if name fetch fails
       senderName = `User ${event.senderID}`;
     }
 
-    // Process attachments more carefully
+    // Process attachments more carefully - FIXED for photos
     let processedAttachments = [];
-    if (event.attachments && event.attachments.length > 0) {
-      processedAttachments = event.attachments.map(att => ({
-        type: att.type || 'unknown',
-        url: att.url || att.previewUrl || att.largePreview || att.thumbnailUrl,
-        filename: att.filename || `attachment_${Date.now()}`,
-        ID: att.ID || null,
-        width: att.width || null,
-        height: att.height || null
-      }));
+    if (event.attachments && Array.isArray(event.attachments) && event.attachments.length > 0) {
+      processedAttachments = event.attachments.map((att, index) => {
+        if (!att) return null;
+        
+        return {
+          type: att.type || 'unknown',
+          url: att.url || att.previewUrl || att.largePreview || att.thumbnailUrl || att.hiresUrl,
+          filename: att.filename || `attachment_${Date.now()}_${index}`,
+          ID: att.ID || att.id || null,
+          width: att.width || null,
+          height: att.height || null,
+          size: att.size || null
+        };
+      }).filter(att => att !== null);
     }
 
-    // Store message data
+    // Store message data - FIXED mentions handling
     store[event.messageID] = {
       senderID: event.senderID,
       senderName: senderName,
       threadID: event.threadID,
       body: event.body || "",
       attachments: processedAttachments,
-      mentions: event.mentions || {},
+      mentions: event.mentions || {}, // Always ensure it's an object
       timestamp: Date.now(),
       messageReply: event.messageReply || null,
       isGroup: event.isGroup || false,
       originalEvent: {
         type: event.type,
-        logMessageType: event.logMessageType,
-        logMessageData: event.logMessageData
+        logMessageType: event.logMessageType || null,
+        logMessageData: event.logMessageData || null
       }
     };
     
-    // Debug log for photo messages
-    if (processedAttachments.length > 0 && processedAttachments.some(att => att.type === 'photo')) {
-      console.log(`📸 Photo message stored: ${event.messageID} from ${senderName}`);
+    // Debug log for all attachment types
+    if (processedAttachments.length > 0) {
+      const types = processedAttachments.map(att => att.type).join(', ');
+      console.log(`📎 Message with attachments stored: ${event.messageID} from ${senderName} (${types})`);
     }
     
     saveStore(store);
@@ -298,13 +331,18 @@ module.exports = {
         reportMsg += `📝 মেসেজ: [খালি বা মিডিয়া মেসেজ]\n\n`;
       }
 
-      // Add mentions
-      if (savedMsg.mentions && Object.keys(savedMsg.mentions).length > 0) {
-        reportMsg += `👥 উল্লেখিত ব্যক্তিরা:\n`;
-        for (const [uid, name] of Object.entries(savedMsg.mentions)) {
-          reportMsg += `• ${name.replace('@', '')} (${uid})\n`;
+      // Add mentions - FIXED to handle null/undefined safely
+      if (savedMsg.mentions && typeof savedMsg.mentions === 'object') {
+        const mentionEntries = Object.entries(savedMsg.mentions);
+        if (mentionEntries.length > 0) {
+          reportMsg += `👥 উল্লেখিত ব্যক্তিরা:\n`;
+          for (const [uid, name] of mentionEntries) {
+            if (name && uid) {
+              reportMsg += `• ${String(name).replace('@', '')} (${uid})\n`;
+            }
+          }
+          reportMsg += `\n`;
         }
-        reportMsg += `\n`;
       }
 
       // Add reply info  
@@ -312,47 +350,86 @@ module.exports = {
         reportMsg += `↩️ রিপ্লাই করা মেসেজ: "${savedMsg.messageReply.body}"\n\n`;
       }
 
-      // Handle attachments
+      // Handle attachments - IMPROVED
       const attachmentFiles = [];
       if (savedMsg.attachments && savedMsg.attachments.length > 0) {
         reportMsg += `📎 সংযুক্তি: ${savedMsg.attachments.length}টি\n`;
         
-        for (let i = 0; i < Math.min(savedMsg.attachments.length, 3); i++) {
+        for (let i = 0; i < Math.min(savedMsg.attachments.length, 5); i++) {
           const att = savedMsg.attachments[i];
           const attType = getAttachmentType(att);
           reportMsg += `${i + 1}. ${attType}\n`;
           
-          const url = att.url || att.previewUrl || att.largePreview;
-          if (url) {
+          // Try multiple URL sources
+          const possibleUrls = [
+            att.url,
+            att.previewUrl, 
+            att.largePreview,
+            att.hiresUrl,
+            att.thumbnailUrl
+          ].filter(Boolean);
+          
+          let downloaded = false;
+          
+          for (const url of possibleUrls) {
+            if (downloaded) break;
+            
             try {
+              console.log(`📥 Downloading attachment ${i} from: ${url}`);
+              
               const response = await axios.get(url, { 
                 responseType: "arraybuffer",
-                timeout: 10000,
-                maxContentLength: 25 * 1024 * 1024, // 25MB limit
+                timeout: 15000,
+                maxContentLength: 50 * 1024 * 1024, // 50MB limit
                 headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                 }
               });
               
-              const ext = path.extname(url).toLowerCase() || '.jpg';
-              const fileName = `unsend_${Date.now()}_${i}${ext}`;
-              const filePath = path.join(__dirname, "..", "cache", fileName);
-              
-              await fs.writeFile(filePath, response.data);
-              attachmentFiles.push(fs.createReadStream(filePath));
+              if (response.data && response.data.byteLength > 0) {
+                // Get extension from URL or content-type
+                let ext = path.extname(new URL(url).pathname).toLowerCase();
+                if (!ext || ext === '.') {
+                  const contentType = response.headers['content-type'] || '';
+                  if (contentType.includes('image')) ext = '.jpg';
+                  else if (contentType.includes('video')) ext = '.mp4';
+                  else if (contentType.includes('audio')) ext = '.mp3';
+                  else ext = '.bin';
+                }
+                
+                const fileName = `unsend_${Date.now()}_${i}${ext}`;
+                const filePath = path.join(__dirname, "..", "cache", fileName);
+                
+                await fs.writeFile(filePath, response.data);
+                
+                // Verify file was created and has content
+                if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
+                  attachmentFiles.push(fs.createReadStream(filePath));
+                  downloaded = true;
+                  reportMsg += `  ✅ ডাউনলোড সফল (${(response.data.byteLength / 1024).toFixed(1)}KB)\n`;
+                } else {
+                  cleanupFile(filePath);
+                }
+              }
               
             } catch (downloadError) {
-              console.error(`Attachment ${i} download error:`, downloadError.message);
-              reportMsg += `  ❌ ডাউনলোড ব্যর্থ\n`;
+              console.error(`❌ Attachment ${i} download error from ${url}:`, downloadError.message);
+              reportMsg += `  ❌ ডাউনলোড ব্যর্থ: ${downloadError.message.substring(0, 50)}\n`;
             }
           }
+          
+          if (!downloaded) {
+            reportMsg += `  ⚠️ কোনো URL থেকে ডাউনলোড করা যায়নি\n`;
+          }
+        }
+        
+        if (savedMsg.attachments.length > 5) {
+          reportMsg += `... এবং আরো ${savedMsg.attachments.length - 5}টি সংযুক্তি\n`;
         }
         reportMsg += `\n`;
       }
 
       reportMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-      reportMsg += `⚡ Enhanced Unsend Detector v5.0\n`;
-      reportMsg += `🛡️ সব মেসেজ ট্র্যাক করা হচ্ছে!`;
 
       // Prepare message options
       const messageOptions = {
@@ -371,15 +448,20 @@ module.exports = {
         try {
           const sourceThreadInfo = await api.getThreadInfo(savedMsg.threadID);
           const sourceGroupName = sourceThreadInfo.threadName || `Group ${savedMsg.threadID}`;
-          reportMsg += `\n🏠 সোর্স গ্রুপ: ${sourceGroupName}\n🆔 গ্রুপ আইডি: ${savedMsg.threadID}\n`;
-          reportMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-          reportMsg += `⚡ Enhanced Unsend Detector v6.0\n`;
-          reportMsg += `🛡️ সব মেসেজ ট্র্যাক করা হচ্ছে!`;
           
-          messageOptions.body = reportMsg;
+          // Update message with source info
+          messageOptions.body = reportMsg + `🏠 সোর্স গ্রুপ: ${sourceGroupName}\n🆔 গ্রুপ আইডি: ${savedMsg.threadID}\n`;
+          messageOptions.body += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+          messageOptions.body += `⚡ Enhanced Unsend Detector v7.0\n`;
+          messageOptions.body += `🛡️ সব মেসেজ ট্র্যাক করা হচ্ছে!`;
         } catch (error) {
           console.error("Error getting source thread info:", error);
+          messageOptions.body += `⚡ Enhanced Unsend Detector v7.0\n`;
+          messageOptions.body += `🛡️ সব মেসেজ ট্র্যাক করা হচ্ছে!`;
         }
+      } else {
+        messageOptions.body += `⚡ Enhanced Unsend Detector v7.0\n`;
+        messageOptions.body += `🛡️ সব মেসেজ ট্র্যাক করা হচ্ছে!`;
       }
       
       await api.sendMessage(messageOptions, targetThreadID)
@@ -389,28 +471,42 @@ module.exports = {
           // Clean up files after sending
           setTimeout(() => {
             attachmentFiles.forEach(file => {
-              try {
-                if (file.path && fs.existsSync(file.path)) {
-                  fs.unlinkSync(file.path);
-                }
-              } catch (cleanupError) {
-                console.error("File cleanup error:", cleanupError.message);
+              if (file.path) {
+                cleanupFile(file.path);
               }
             });
-          }, 5000);
+          }, 10000);
         })
-        .catch((error) => {
+        .catch(async (error) => {
           console.error("Report send error:", error.message);
           
-          // Fallback: Send simple text message
-          let fallbackMsg = `🚨 Unsend Detected!\n👤 ${savedMsg.senderName} (${savedMsg.senderID})\n📝 "${savedMsg.body || 'মিডিয়া মেসেজ'}"`;
+          // Clean up files immediately on error
+          attachmentFiles.forEach(file => {
+            if (file.path) {
+              cleanupFile(file.path);
+            }
+          });
           
-          const fallbackTargetID = TARGET_THREAD_ID || savedMsg.threadID;
-          if (TARGET_THREAD_ID && TARGET_THREAD_ID !== savedMsg.threadID) {
-            fallbackMsg += `\n🏠 Group: ${savedMsg.threadID}`;
+          // Fallback: Send simple text message without attachments
+          try {
+            let fallbackMsg = `🚨 Unsend Detected!\n`;
+            fallbackMsg += `👤 ${savedMsg.senderName} (${savedMsg.senderID})\n`;
+            fallbackMsg += `📝 "${savedMsg.body || 'মিডিয়া মেসেজ'}"\n`;
+            
+            if (savedMsg.attachments && savedMsg.attachments.length > 0) {
+              fallbackMsg += `📎 ${savedMsg.attachments.length}টি সংযুক্তি\n`;
+            }
+            
+            const fallbackTargetID = TARGET_THREAD_ID || savedMsg.threadID;
+            if (TARGET_THREAD_ID && TARGET_THREAD_ID !== savedMsg.threadID) {
+              fallbackMsg += `🏠 Group: ${savedMsg.threadID}`;
+            }
+            
+            await api.sendMessage(fallbackMsg, fallbackTargetID);
+            console.log(`📤 Fallback message sent for: ${event.messageID}`);
+          } catch (fallbackError) {
+            console.error("Fallback message error:", fallbackError.message);
           }
-          
-          api.sendMessage(fallbackMsg, fallbackTargetID);
         });
 
       // Remove from store
@@ -418,25 +514,30 @@ module.exports = {
       saveStore(store);
 
     } catch (error) {
-      console.error("Handler error:", error.message);
+      console.error("Handler error:", error.message, error.stack);
       
-      // Emergency fallback
+      // Emergency fallback - FIXED to avoid null conversion
       try {
-        let emergencyMsg = `🚨 Unsend Alert!\n👤 ${savedMsg.senderName || 'Unknown'}\n📝 "${savedMsg.body || 'Content not available'}"`;
+        let emergencyMsg = `🚨 Unsend Alert!\n`;
+        emergencyMsg += `👤 ${savedMsg.senderName || 'Unknown User'}\n`;
+        emergencyMsg += `🆔 ${savedMsg.senderID}\n`;
+        emergencyMsg += `📝 "${savedMsg.body || 'Content not available'}"\n`;
+        emergencyMsg += `📎 ${(savedMsg.attachments && savedMsg.attachments.length) || 0} attachments\n`;
         
         const emergencyTargetID = TARGET_THREAD_ID || savedMsg.threadID;
         if (TARGET_THREAD_ID && TARGET_THREAD_ID !== savedMsg.threadID) {
-          emergencyMsg += `\n🏠 Group: ${savedMsg.threadID}`;
+          emergencyMsg += `🏠 From Group: ${savedMsg.threadID}`;
         }
         
         await api.sendMessage(emergencyMsg, emergencyTargetID);
+        console.log(`🆘 Emergency message sent for: ${event.messageID}`);
         
-        // Clean up store
+      } catch (emergencyError) {
+        console.error("Emergency fallback error:", emergencyError.message);
+      } finally {
+        // Always clean up store
         delete store[event.messageID];
         saveStore(store);
-        
-      } catch (fallbackError) {
-        console.error("Emergency fallback error:", fallbackError.message);
       }
     }
   }

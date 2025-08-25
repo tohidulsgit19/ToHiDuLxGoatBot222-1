@@ -1,25 +1,122 @@
+const fs = require("fs-extra");
+const path = require("path");
+
+// Store file for tracking daily plays
+const WHEEL_STORE_FILE = path.join(__dirname, "..", "cache", "wheelDaily.json");
+const DAILY_LIMIT = 5; // Maximum 5 spins per day per user
+
+// Ensure store file exists
+function ensureStoreFile() {
+  const folder = path.dirname(WHEEL_STORE_FILE);
+  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+  if (!fs.existsSync(WHEEL_STORE_FILE)) {
+    fs.writeFileSync(WHEEL_STORE_FILE, JSON.stringify({}));
+  }
+}
+
+// Load wheel data
+function loadWheelData() {
+  ensureStoreFile();
+  try {
+    return JSON.parse(fs.readFileSync(WHEEL_STORE_FILE, 'utf8'));
+  } catch (error) {
+    return {};
+  }
+}
+
+// Save wheel data
+function saveWheelData(data) {
+  try {
+    fs.writeFileSync(WHEEL_STORE_FILE, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error("Error saving wheel data:", error);
+  }
+}
+
+// Get today's date string
+function getTodayString() {
+  const today = new Date();
+  return `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+}
+
 module.exports = {
  config: {
  name: "wheel",
- version: "3.1",
+ version: "4.0",
  author: "xnil6x",
- shortDescription: "🎡 Ultra-Stable Wheel Game",
- longDescription: "Guaranteed smooth spinning experience with automatic fail-safes",
+ shortDescription: "🎡 Ultra-Stable Wheel Game with Daily Limit",
+ longDescription: "Guaranteed smooth spinning experience with automatic fail-safes and daily limits",
  category: "Game",
  guide: {
- en: "{p}wheel <amount>"
+ en: "{p}wheel <amount> - Spin the wheel (5 times per day max)\n{p}wheel stats - Check your daily stats"
  }
  },
 
  onStart: async function ({ api, event, args, usersData }) {
  const { senderID, threadID } = event;
+ 
+ // Handle stats command
+ if (args[0] && args[0].toLowerCase() === "stats") {
+   const wheelData = loadWheelData();
+   const today = getTodayString();
+   const userData = wheelData[senderID] || { dailySpins: {}, totalSpins: 0, totalWon: 0, totalLost: 0 };
+   const todaySpins = userData.dailySpins[today] || 0;
+   const remainingSpins = DAILY_LIMIT - todaySpins;
+
+   let statsMsg = `🎡 আপনার Wheel Game পরিসংখ্যান\n`;
+   statsMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+   statsMsg += `📊 আজকের স্পিন: ${todaySpins}/${DAILY_LIMIT}\n`;
+   statsMsg += `⏳ বাকি স্পিন: ${remainingSpins}\n`;
+   statsMsg += `🎲 মোট স্পিন: ${userData.totalSpins}\n`;
+   statsMsg += `💰 মোট জেতা: ${this.formatMoney(userData.totalWon)}\n`;
+   statsMsg += `💸 মোট হারানো: ${this.formatMoney(Math.abs(userData.totalLost))}\n`;
+   
+   const nextReset = new Date();
+   nextReset.setDate(nextReset.getDate() + 1);
+   nextReset.setHours(0, 0, 0, 0);
+   statsMsg += `🔄 পরবর্তী রিসেট: ${nextReset.toLocaleString('bn-BD', { timeZone: 'Asia/Dhaka' })}`;
+
+   return api.sendMessage(statsMsg, threadID);
+ }
+
+ // Check daily limit
+ const wheelData = loadWheelData();
+ const today = getTodayString();
+ 
+ if (!wheelData[senderID]) {
+   wheelData[senderID] = {
+     dailySpins: {},
+     totalSpins: 0,
+     totalWon: 0,
+     totalLost: 0,
+     lastSpin: null
+   };
+ }
+
+ const userData = wheelData[senderID];
+ const todaySpins = userData.dailySpins[today] || 0;
+
+ if (todaySpins >= DAILY_LIMIT) {
+   const nextReset = new Date();
+   nextReset.setDate(nextReset.getDate() + 1);
+   nextReset.setHours(0, 0, 0, 0);
+   
+   return api.sendMessage(
+     `🚫 দৈনিক সীমা শেষ!\n\n` +
+     `আপনি আজ ${DAILY_LIMIT}টি স্পিন সম্পন্ন করেছেন।\n` +
+     `⏰ পরবর্তী রিসেট: ${nextReset.toLocaleString('bn-BD', { timeZone: 'Asia/Dhaka' })}\n\n` +
+     `📊 আজকের স্ট্যাটস দেখতে: wheel stats`,
+     threadID
+   );
+ }
+
  let betAmount = 0;
 
  try {
  betAmount = this.sanitizeBetAmount(args[0]);
  if (!betAmount) {
  return api.sendMessage(
- `❌ Invalid bet amount! Usage: ${global.GoatBot.config.prefix}wheel 500`,
+ `❌ Invalid bet amount! Usage: ${global.GoatBot.config.prefix}wheel 500\n📊 Stats: wheel stats`,
  threadID
  );
  }
@@ -44,10 +141,23 @@ module.exports = {
 
  await usersData.set(senderID, { money: newBalance });
 
- return api.sendMessage(
- this.generateResultText(result, winAmount, betAmount, newBalance),
- threadID
- );
+ // Update daily tracking
+ userData.dailySpins[today] = todaySpins + 1;
+ userData.totalSpins++;
+ userData.lastSpin = Date.now();
+ 
+ if (winAmount > 0) {
+   userData.totalWon += winAmount;
+ } else {
+   userData.totalLost += winAmount;
+ }
+ 
+ saveWheelData(wheelData);
+
+ const remainingSpins = DAILY_LIMIT - (todaySpins + 1);
+ const resultText = this.generateResultText(result, winAmount, betAmount, newBalance, remainingSpins);
+
+ return api.sendMessage(resultText, threadID);
 
  } catch (error) {
  console.error("Wheel System Error:", error);
@@ -94,12 +204,15 @@ module.exports = {
  return { result, winAmount };
  },
 
- generateResultText: function(result, winAmount, betAmount, newBalance) {
+ generateResultText: function(result, winAmount, betAmount, newBalance, remainingSpins) {
  const resultText = [
  `🎡 WHEEL STOPPED ON: ${result.emoji}`,
  "",
  this.getOutcomeText(result.multiplier, winAmount, betAmount),
- `💰 NEW BALANCE: ${this.formatMoney(newBalance)}`
+ `💰 NEW BALANCE: ${this.formatMoney(newBalance)}`,
+ `🎲 আজকের অবশিষ্ট স্পিন: ${remainingSpins || 0}`,
+ "",
+ `📊 Stats: wheel stats`
  ].join("\n");
 
  return resultText;
