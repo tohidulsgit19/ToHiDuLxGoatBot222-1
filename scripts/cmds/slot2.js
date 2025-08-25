@@ -49,20 +49,20 @@ module.exports = {
     const limit = 20;
     const resetTime = 12 * 60 * 60 * 1000; // 12h
 
-    if (!userData.slot2Data) {
-      userData.slot2Data = { count: 0, lastReset: now };
+    if (!userData.gameData) {
+      userData.gameData = { count: 0, lastReset: now };
     }
 
-    if (now - userData.slot2Data.lastReset > resetTime) {
-      userData.slot2Data = { count: 0, lastReset: now };
+    if (now - userData.gameData.lastReset > resetTime) {
+      userData.gameData = { count: 0, lastReset: now };
     }
 
-    if (userData.slot2Data.count >= limit) {
-      const remaining = ((resetTime - (now - userData.slot2Data.lastReset)) / (60 * 60 * 1000)).toFixed(1);
+    if (userData.gameData.count >= limit) {
+      const remaining = ((resetTime - (now - userData.gameData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
       return message.reply(getLang("limit_reached", limit, remaining));
     }
 
-    userData.slot2Data.count++;
+    userData.gameData.count++;
     // ==========================================
 
     const slots = ["🍒", "🍇", "🍊", "🍉", "🍋", "🍎", "🍓", "🍑", "🥝"];
@@ -87,7 +87,7 @@ module.exports = {
     }
 
     return message.reply(
-      messageText + `\n💰 Balance: ${userData.money}\n🌀 Spins used: ${userData.slot2Data.count}/${limit}`
+      messageText + `\n💰 Balance: ${userData.money}\n🎮 Casino games played: ${userData.gameData.count}/${limit}`
     );
   },
 };

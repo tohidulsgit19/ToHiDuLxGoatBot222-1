@@ -34,10 +34,10 @@ module.exports = {
 
     if (user.money < bet) return message.reply(`💸 Need ${formatMoney(bet - user.money)} more.`);
 
-    // ========= LIMIT SYSTEM (database based) =========
+    // ===== UNIVERSAL GAME LIMIT SYSTEM =====
     const now = Date.now();
     const limit = 20;
-    const resetTime = 12 * 60 * 60 * 1000; // 12 ঘন্টা
+    const resetTime = 12 * 60 * 60 * 1000; // 12h
 
     if (!user.gameData) {
       user.gameData = { count: 0, lastReset: now };
@@ -88,7 +88,7 @@ module.exports = {
       `${outcome}\n\n` +
       `${winnings >= 0 ? `+${formatMoney(winnings)}` : `-${formatMoney(bet)}`}\n\n` +
       `💰 Bal: ${formatMoney(newBalance)}\n\n` +
-      `🌀 Spins used: ${user.gameData.count}/${limit}`;
+      `🎮 Casino games played: ${user.gameData.count}/${limit}`;
 
     return message.reply(result);
   }
