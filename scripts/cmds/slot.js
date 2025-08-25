@@ -1,6 +1,7 @@
 const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
+const gameCount = require("./gameCount");
 
 module.exports = {
   config: {
@@ -34,25 +35,15 @@ module.exports = {
 
     if (user.money < bet) return message.reply(`💸 Need ${formatMoney(bet - user.money)} more.`);
 
-    // ===== UNIVERSAL GAME LIMIT SYSTEM =====
-    const now = Date.now();
-    const limit = 20;
-    const resetTime = 12 * 60 * 60 * 1000; // 12h
-
-    if (!user.gameData) {
-      user.gameData = { count: 0, lastReset: now };
+    // ===== GAME LIMIT SYSTEM USING gameCount.js =====
+    const gameCheck = gameCount.canPlayGame(senderID, "slot");
+    
+    if (!gameCheck.canPlay) {
+      return message.reply(`⚠️ You already played ${gameCheck.limit} slot games in last 12h. Try again after ${gameCheck.remaining} hours.`);
     }
 
-    if (now - user.gameData.lastReset > resetTime) {
-      user.gameData = { count: 0, lastReset: now };
-    }
-
-    if (user.gameData.count >= limit) {
-      const remaining = ((resetTime - (now - user.gameData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
-      return message.reply(`⚠️ You already played ${limit} casino games in last 12h. Try again after ${remaining} hours.`);
-    }
-
-    user.gameData.count++;
+    // Increment game count
+    const currentCount = gameCount.incrementGameCount(senderID, "slot");
     // ===============================================
 
     const symbols = ["🍒", "🍋", "🍇", "🍉", "⭐", "7️⃣"];
@@ -88,7 +79,7 @@ module.exports = {
       `${outcome}\n\n` +
       `${winnings >= 0 ? `+${formatMoney(winnings)}` : `-${formatMoney(bet)}`}\n\n` +
       `💰 Bal: ${formatMoney(newBalance)}\n\n` +
-      `🎮 Casino games played: ${user.gameData.count}/${limit}`;
+      `🎮 Slot games played: ${currentCount}/20`;
 
     return message.reply(result);
   }

@@ -1,4 +1,6 @@
 
+const gameCount = require("./gameCount");
+
 module.exports = {
   config: {
     name: "slot",
@@ -44,25 +46,15 @@ module.exports = {
       return message.reply(getLang("not_enough_money"));
     }
 
-    // ===== UNIVERSAL GAME LIMIT SYSTEM =====
-    const now = Date.now();
-    const limit = 20;
-    const resetTime = 12 * 60 * 60 * 1000; // 12h
-
-    if (!userData.gameData) {
-      userData.gameData = { count: 0, lastReset: now };
+    // ===== GAME LIMIT SYSTEM USING gameCount.js =====
+    const gameCheck = gameCount.canPlayGame(senderID, "slot");
+    
+    if (!gameCheck.canPlay) {
+      return message.reply(`⚠️ You already played ${gameCheck.limit} slot games in last 12h. Try again after ${gameCheck.remaining} hours.`);
     }
 
-    if (now - userData.gameData.lastReset > resetTime) {
-      userData.gameData = { count: 0, lastReset: now };
-    }
-
-    if (userData.gameData.count >= limit) {
-      const remaining = ((resetTime - (now - userData.gameData.lastReset)) / (60 * 60 * 1000)).toFixed(1);
-      return message.reply(getLang("limit_reached", limit, remaining));
-    }
-
-    userData.gameData.count++;
+    // Increment game count
+    const currentCount = gameCount.incrementGameCount(senderID, "slot");
     // ==========================================
 
     const slots = ["🍒", "🍇", "🍊", "🍉", "🍋", "🍎", "🍓", "🍑", "🥝"];
@@ -87,7 +79,7 @@ module.exports = {
     }
 
     return message.reply(
-      messageText + `\n💰 Balance: ${userData.money}\n🎮 Casino games played: ${userData.gameData.count}/${limit}`
+      messageText + `\n💰 Balance: ${userData.money}\n🎮 Slot games played: ${currentCount}/20`ino games played: ${userData.gameData.count}/${limit}`
     );
   },
 };

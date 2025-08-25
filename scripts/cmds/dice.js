@@ -1,3 +1,5 @@
+const gameCount = require("./gameCount");
+
 module.exports = {
   config: {
     name: "dice",
@@ -37,13 +39,15 @@ module.exports = {
       return api.sendMessage(`❌ You only have ${formatMoney(userData.money)} coins!`, threadID);
     }
 
-    // ===== UNIVERSAL GAME LIMIT SYSTEM =====
-    const now = Date.now();
-    const limit = 20;
-    const resetTime = 12 * 60 * 60 * 1000; // 12h
+    // ===== GAME LIMIT SYSTEM USING gameCount.js =====
+    const gameCheck = gameCount.canPlayGame(senderID, "dice");
+    
+    if (!gameCheck.canPlay) {
+      return api.sendMessage(`⚠️ You already played ${gameCheck.limit} dice games in last 12h. Try again after ${gameCheck.remaining} hours.`, threadID);
+    }
 
-    if (!userData.gameData) {
-      userData.gameData = { count: 0, lastReset: now };
+    // Increment game count
+    const currentCount = gameCount.incrementGameCount(senderID, "dice");t: now };
     }
 
     if (now - userData.gameData.lastReset > resetTime) {
