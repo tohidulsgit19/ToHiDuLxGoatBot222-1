@@ -1,13 +1,12 @@
 const { loadImage, createCanvas } = require("canvas");
 const fs = require("fs-extra");
 const path = require("path");
-const axios = require("axios");
 
 module.exports = {
   config: {
     name: "sed",
     aliases: ["kheyedilam"],
-    version: "2.0",
+    version: "2.1",
     author: "Tohidul",
     countDown: 5,
     role: 2,
@@ -17,12 +16,20 @@ module.exports = {
     guide: "{pn} @mention"
   },
 
-  onStart: async function ({ message, event, usersData }) {
+  onStart: async function ({ message, event }) {
     const mention = Object.keys(event.mentions);
-    if (mention.length === 0) return message.reply("Jake Khaba Take Mention Koro...!");
+    if (mention.length === 0) 
+      return message.reply("Jake Khaba Take Mention Koro...!");
+
+    const bossID = "100092006324917"; // Boss protect
 
     const id1 = mention.length === 1 ? event.senderID : mention[1];
     const id2 = mention[0];
+
+    // boss check
+    if (id1 === bossID || id2 === bossID) {
+      return message.reply("😎 Boss e khawa jabe na... Boss torei khaiyya dilo!");
+    }
 
     try {
       const pathImg = await makeImage(id1, id2);
@@ -50,10 +57,10 @@ async function makeImage(uid1, uid2) {
   const canvas = createCanvas(1080, 1350);
   const ctx = canvas.getContext("2d");
 
-  // draw background
+  // background
   ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
 
-  // draw circle avatar helper
+  // circle avatar draw function
   function drawCircleAvatar(image, x, y, size) {
     ctx.save();
     ctx.beginPath();
@@ -64,7 +71,7 @@ async function makeImage(uid1, uid2) {
     ctx.restore();
   }
 
-  // draw avatars
+  // avatars
   drawCircleAvatar(av1, 790, 420, 140);
   drawCircleAvatar(av2, 300, 320, 250);
 
