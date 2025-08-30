@@ -5,7 +5,7 @@ const { createCanvas, loadImage } = require("canvas");
 
 module.exports = {
   config: {
-    name: "pair",
+    name: "pair3",
     version: "3.3",
     author: "Tohidul (Fixed by ChatGPT)",
     countDown: 5,

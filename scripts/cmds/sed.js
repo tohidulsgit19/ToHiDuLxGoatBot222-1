@@ -6,7 +6,7 @@ const axios = require("axios");
 module.exports = {
   config: {
     name: "sed",
-    aliases: ["fun"],
+    aliases: ["kheyedilam"],
     version: "2.0",
     author: "Tohidul",
     countDown: 5,
@@ -19,7 +19,7 @@ module.exports = {
 
   onStart: async function ({ message, event, usersData }) {
     const mention = Object.keys(event.mentions);
-    if (mention.length === 0) return message.reply("Please mention someone!");
+    if (mention.length === 0) return message.reply("Jake Khaba Take Mention Koro...!");
 
     const id1 = mention.length === 1 ? event.senderID : mention[1];
     const id2 = mention[0];
@@ -27,7 +27,7 @@ module.exports = {
     try {
       const pathImg = await makeImage(id1, id2);
       message.reply({
-        body: "tbh we both enjoyed🫣🥹",
+        body: "Kheye Dilo ReeeeeH🫣🥹",
         attachment: fs.createReadStream(pathImg)
       }, () => fs.unlinkSync(pathImg));
     } catch (e) {

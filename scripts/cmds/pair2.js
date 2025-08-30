@@ -4,7 +4,7 @@ const path = require("path");
 
 module.exports = {
   config: {
-    name: "pair2",
+    name: "pair",
     countDown: 10,
     role: 0,
     shortDescription: {
