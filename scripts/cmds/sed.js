@@ -6,7 +6,7 @@ module.exports = {
   config: {
     name: "sed",
     aliases: ["kheyedilam"],
-    version: "2.1",
+    version: "2.2",
     author: "Tohidul",
     countDown: 5,
     role: 2,
@@ -21,13 +21,13 @@ module.exports = {
     if (mention.length === 0) 
       return message.reply("Jake Khaba Take Mention Koro...!");
 
-    const bossID = "100092006324917"; // Boss protect
+    const bossID = "100092006324917"; // protect boss
 
     const id1 = mention.length === 1 ? event.senderID : mention[1];
     const id2 = mention[0];
 
-    // boss check
-    if (id1 === bossID || id2 === bossID) {
+    // ✅ check if boss is tagged
+    if (mention.includes(bossID)) {
       return message.reply("😎 Boss e khawa jabe na... Boss torei khaiyya dilo!");
     }
 
@@ -60,7 +60,7 @@ async function makeImage(uid1, uid2) {
   // background
   ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
 
-  // circle avatar draw function
+  // circle avatar draw
   function drawCircleAvatar(image, x, y, size) {
     ctx.save();
     ctx.beginPath();
